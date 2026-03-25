@@ -10,7 +10,8 @@ createApp({
       articleMarkdown: "",
       summary: null,
       error: null,
-      isPublishing: false
+      isPublishing: false,
+      showIgnored: false // Gizlenen rakipleri göstermek için toggle
     };
   },
   computed: {
@@ -25,6 +26,7 @@ createApp({
       this.summary = null;
       this.error = null;
       this.step = 1;
+      this.showIgnored = false;
 
       setTimeout(() => { if (this.isLoading) this.step = 2; }, 4000);
       setTimeout(() => { if (this.isLoading) this.step = 3; }, 12000);

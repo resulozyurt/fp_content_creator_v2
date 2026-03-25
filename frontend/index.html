@@ -46,11 +46,11 @@
             ><span class="font-medium">İçerik Üretici</span>
           </a>
           <a
-            href="#"
+            href="/history"
             class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
           >
-            <i class="fa-solid fa-clock-rotate-left w-5 mr-3"></i
-            ><span class="font-medium">Geçmiş (Yakında)</span>
+            <i class="fa-solid fa-database w-5 mr-3"></i
+            ><span class="font-medium">Geçmiş Kayıtlar</span>
           </a>
           <a
             href="/wp-settings"
@@ -168,6 +168,7 @@
                     </button>
                   </div>
                 </div>
+
                 <div class="p-8 flex-1 overflow-y-auto">
                   <div
                     v-if="articleMarkdown && !isLoading"
@@ -179,6 +180,131 @@
                     class="flex justify-center text-brand-500 mt-20"
                   >
                     <i class="fa-solid fa-layer-group fa-bounce text-4xl"></i>
+                  </div>
+                  <div
+                    v-else
+                    class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50"
+                  >
+                    <i class="fa-solid fa-robot text-5xl mb-4"></i>
+                    <p>Üretime başlamak için form verilerini doldurun.</p>
+                  </div>
+                </div>
+
+                <div
+                  v-if="summary && !isLoading"
+                  class="border-t border-gray-100 bg-gray-50 rounded-b-xl flex flex-col"
+                >
+                  <div
+                    class="p-4 border-b border-gray-200 grid grid-cols-4 gap-4 text-center"
+                  >
+                    <div class="bg-white p-2 rounded border border-gray-200">
+                      <p class="text-xs text-gray-500">Bulunan Rakip</p>
+                      <p class="font-bold text-gray-800">
+                        {{ summary.total_found }}
+                      </p>
+                    </div>
+                    <div class="bg-blue-50 p-2 rounded border border-blue-100">
+                      <p class="text-xs text-blue-600">Referans Alınan</p>
+                      <p class="font-bold text-blue-800">
+                        {{ summary.analyzed }}
+                      </p>
+                    </div>
+                    <div class="bg-red-50 p-2 rounded border border-red-100">
+                      <p class="text-xs text-red-600">Es Geçilen</p>
+                      <p class="font-bold text-red-800">
+                        {{ summary.ignored }}
+                      </p>
+                    </div>
+                    <div
+                      class="bg-green-50 p-2 rounded border border-green-100"
+                    >
+                      <p class="text-xs text-green-600">Başarılı Kazıma</p>
+                      <p class="font-bold text-green-800">
+                        {{ summary.successful_scrapes }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="p-4">
+                    <div class="flex justify-between items-center mb-3">
+                      <h4
+                        class="text-sm font-semibold text-gray-700"
+                        v-if="!showIgnored"
+                      >
+                        <i
+                          class="fa-solid fa-check-double text-green-500 mr-1"
+                        ></i>
+                        Analiz Edilen Kaynaklar
+                      </h4>
+                      <h4 class="text-sm font-semibold text-gray-700" v-else>
+                        <i class="fa-solid fa-ban text-red-500 mr-1"></i>
+                        Filtrelenen (Dikkate Alınmayan) Kaynaklar
+                      </h4>
+
+                      <button
+                        @click="showIgnored = !showIgnored"
+                        class="text-xs text-blue-600 hover:underline"
+                      >
+                        {{ showIgnored ? 'Analiz Edilenleri Göster' : 'Es
+                        Geçilenleri Göster' }}
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="!showIgnored"
+                      class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2"
+                    >
+                      <a
+                        v-for="(comp, index) in summary.competitor_details"
+                        :key="index"
+                        :href="comp.link"
+                        target="_blank"
+                        class="flex items-center p-2 bg-white border border-gray-200 rounded text-left hover:border-blue-400"
+                      >
+                        <span
+                          class="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[10px] font-bold mr-2"
+                          >{{ index + 1 }}</span
+                        >
+                        <div class="overflow-hidden">
+                          <p
+                            class="text-xs font-medium text-gray-800 truncate"
+                            :title="comp.title"
+                          >
+                            {{ comp.title }}
+                          </p>
+                          <p
+                            class="text-[10px] text-gray-400 truncate"
+                            :title="comp.link"
+                          >
+                            {{ comp.link }}
+                          </p>
+                        </div>
+                      </a>
+                    </div>
+
+                    <div
+                      v-else
+                      class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2"
+                    >
+                      <div
+                        v-for="(comp, index) in summary.ignored_details"
+                        :key="'ig'+index"
+                        class="flex items-center p-2 bg-gray-100 border border-gray-200 rounded text-left opacity-75"
+                      >
+                        <span
+                          class="w-5 h-5 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-[10px] font-bold mr-2"
+                          ><i class="fa-solid fa-xmark"></i
+                        ></span>
+                        <div class="overflow-hidden">
+                          <p class="text-xs font-medium text-gray-600 truncate">
+                            {{ comp.title }}
+                          </p>
+                          <p class="text-[10px] text-gray-400 truncate">
+                            {{ comp.link }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
