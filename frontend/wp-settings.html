@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WP Ayarları | SEO İçerik Motoru</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+    <script>
+      tailwind.config = {
+        theme: { extend: { colors: { brand: { 600: "#2563eb" } } } },
+      };
+    </script>
+  </head>
+  <body class="bg-gray-50 text-gray-800 font-sans">
+    <div id="app" class="flex h-screen overflow-hidden">
+      <aside class="w-64 bg-slate-900 text-white flex flex-col hidden md:flex">
+        <div class="h-16 flex items-center px-6 border-b border-slate-700">
+          <i class="fa-solid fa-bolt text-brand-500 text-xl mr-3"></i>
+          <span class="text-lg font-bold">ContentEngine</span>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+          <a
+            href="/"
+            class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+          >
+            <i class="fa-solid fa-pen-nib w-5 mr-3"></i
+            ><span class="font-medium">İçerik Üretici</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+          >
+            <i class="fa-solid fa-clock-rotate-left w-5 mr-3"></i
+            ><span class="font-medium">Geçmiş</span>
+          </a>
+          <a
+            href="/wp-settings"
+            class="flex items-center px-4 py-3 bg-brand-600 text-white rounded-lg transition-colors"
+          >
+            <i class="fa-brands fa-wordpress w-5 mr-3"></i
+            ><span class="font-medium">WP Entegrasyonu</span>
+          </a>
+        </nav>
+      </aside>
+
+      <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+        <header
+          class="h-16 bg-white border-b border-gray-200 flex items-center px-8 shadow-sm justify-between"
+        >
+          <h1 class="text-xl font-semibold">WordPress API Bağlantı Ayarları</h1>
+        </header>
+
+        <div class="p-8 max-w-3xl mx-auto w-full mt-10">
+          <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+            <div class="mb-6 pb-4 border-b">
+              <h2 class="text-lg font-bold text-gray-800">
+                <i class="fa-solid fa-link text-brand-600 mr-2"></i>Hedef Site
+                Bilgileri
+              </h2>
+              <p class="text-sm text-gray-500 mt-1">
+                Bu bilgiler tarayıcınızda (yerel) güvenle saklanır, veritabanına
+                kaydedilmez.
+              </p>
+            </div>
+
+            <form @submit.prevent="saveSettings" class="space-y-5">
+              <div>
+                <label class="block text-sm font-medium mb-1"
+                  >WordPress Site URL</label
+                >
+                <input
+                  type="url"
+                  v-model="wpForm.wp_url"
+                  required
+                  placeholder="https://siteadresiniz.com"
+                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-1"
+                  >Yönetici Kullanıcı Adı</label
+                >
+                <input
+                  type="text"
+                  v-model="wpForm.wp_username"
+                  required
+                  placeholder="admin"
+                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-1"
+                  >Application Password (Uygulama Şifresi)</label
+                >
+                <input
+                  type="password"
+                  v-model="wpForm.wp_app_password"
+                  required
+                  placeholder="xxxx xxxx xxxx xxxx"
+                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-1"
+                  >Varsayılan Gönderim Durumu</label
+                >
+                <select
+                  v-model="wpForm.status"
+                  class="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="draft">Taslak Olarak Kaydet</option>
+                  <option value="publish">Doğrudan Yayınla</option>
+                </select>
+              </div>
+
+              <div class="flex items-center pt-4">
+                <button
+                  type="submit"
+                  class="bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors"
+                >
+                  Ayarları Kaydet
+                </button>
+                <span v-if="isSaved" class="ml-4 text-green-600 font-medium"
+                  ><i class="fa-solid fa-check mr-1"></i> Başarıyla
+                  Kaydedildi!</span
+                >
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/js/wp-settings.js"></script>
+  </body>
+</html>
