@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 import os
+from models import SerpRequest, ScrapeRequest, GenerateArticleRequest, AutoGenerateRequest, WPPublishRequest
+from services.wp import publish_to_wordpress
 
 # Modülleri içe aktarıyoruz
 from models import SerpRequest, ScrapeRequest, GenerateArticleRequest, AutoGenerateRequest
@@ -98,3 +100,16 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Otomasyon Hatası: {str(e)}")
+    
+@app.post("/api/v1/publish-to-wp")
+async def publish_to_wp_endpoint(request: WPPublishRequest):
+    try:
+        result = await publish_to_wordpress(request)
+        return {
+            "status": "success", 
+            "message": "İçerik başarıyla WordPress'e aktarıldı.",
+            "post_id": result.get("id"),
+            "post_url": result.get("link")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

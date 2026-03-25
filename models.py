@@ -19,3 +19,11 @@ class AutoGenerateRequest(BaseModel):
     keyword: str
     language: str = "tr"
     country: str = "tr"
+
+class WPPublishRequest(BaseModel):
+    wp_url: str
+    wp_username: str
+    wp_app_password: str
+    title: str
+    content_markdown: str
+    status: str = "draft"  # 'draft' (taslak) veya 'publish' (yayınla)
