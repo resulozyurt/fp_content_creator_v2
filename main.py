@@ -57,16 +57,27 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest):
     try:
         # 1. SERP
         serp_data = await fetch_serp_data(request.keyword, request.language, request.country)
-        urls_to_scrape = [comp["link"] for comp in serp_data.get("competitors", [])]
         
-        if not urls_to_scrape:
-             raise HTTPException(status_code=404, detail="Google'da rakip bulunamadı.")
+        # Blacklist: Taranmayacak ve dikkate alınmayacak alan adları
+        blacklist = ['youtube.com', 'facebook.com', 'instagram.com', 'pinterest.com', 'twitter.com', 'tiktok.com', 'linkedin.com', 'amazon.com']
+        
+        # Blacklist'te olmayan organik sonuçları filtrele
+        valid_competitors = [
+            comp for comp in serp_data.get("competitors", [])
+            if not any(blocked in comp["link"].lower() for blocked in blacklist)
+        ]
+        
+        if not valid_competitors:
+             raise HTTPException(status_code=404, detail="Google'da taranabilir uygun rakip bulunamadı.")
+
+        # Kapsamı Genişletme: İlk 5 yerine filtrelenmiş ilk 10 sonucu alıyoruz
+        top_10_competitors = valid_competitors[:10]
+        urls_to_scrape = [comp["link"] for comp in top_10_competitors]
 
         # 2. KAZIMA
-        top_5_urls = urls_to_scrape[:5]
-        scrape_data = await fetch_scraped_data(top_5_urls)
+        scrape_data = await fetch_scraped_data(urls_to_scrape)
         
-        # URL ve İçeriği eşleştirerek AI servisine gönderilecek yeni formatı hazırlıyoruz
+        # URL ve İçeriği eşleştirerek AI servisine gönderilecek format
         competitor_data = [{"url": item["url"], "content": item["content"]} for item in scrape_data.get("data", [])]
         
         if not competitor_data:
@@ -79,8 +90,9 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest):
             "status": "success",
             "process_summary": {
                 "keyword": request.keyword,
-                "competitors_analyzed": len(top_5_urls),
-                "successful_scrapes": scrape_data.get("success_count", 0)
+                "competitors_analyzed": len(urls_to_scrape),
+                "successful_scrapes": scrape_data.get("success_count", 0),
+                "competitor_details": top_10_competitors 
             },
             "final_article": article_data.get("article_markdown", "")
         }
