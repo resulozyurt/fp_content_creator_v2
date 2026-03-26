@@ -25,9 +25,9 @@ MAKALE METNİ:
 {article_markdown[:4000]}
 """
     try:
-        # NOKTA ATIŞI: Yetki listendeki en hızlı ve JSON için en ideal model
+        # Görsel promptu üretimi için ana model ile aynı modeli (Sonnet) kullanıyoruz
         response = anthropic_client.messages.create(
-            model="claude-haiku-4-5-20251001", 
+            model="claude-sonnet-4-6", 
             max_tokens=1000,
             temperature=0.2,
             messages=[{"role": "user", "content": prompt}]
@@ -48,7 +48,8 @@ async def generate_imagen_base64(prompt: str) -> str:
         print("KRİTİK HATA: Railway Variables içinde 'GEMINI_API_KEY' bulunamadı!")
         return ""
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-images:predict?key={api_key}"
+    # DÜZELTİLEN KISIM: Google AI Studio'nun doğru model endpointi (001)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={api_key}"
     payload = {
         "instances": [{"prompt": prompt}],
         "parameters": {"sampleCount": 1, "aspectRatio": "16:9"}
