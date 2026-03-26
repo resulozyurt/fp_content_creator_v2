@@ -79,5 +79,8 @@ createApp({
         this.isPublishing = false;
       }
     }
-  }
-}).mount("#app");
+}
+});
+
+app.component('app-sidebar', AppSidebar);
+app.mount("#app");

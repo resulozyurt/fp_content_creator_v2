@@ -107,4 +107,6 @@ createApp({
       }
     }
   },
-}).mount("#app");
+});
+app.component('app-sidebar', AppSidebar);
+app.mount("#app");

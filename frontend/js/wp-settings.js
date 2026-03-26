@@ -23,5 +23,7 @@ createApp({
       this.isSaved = true;
       setTimeout(() => { this.isSaved = false; }, 3000);
     }
-  }
-}).mount("#app");
+}
+});
+app.component('app-sidebar', AppSidebar);
+app.mount("#app");
