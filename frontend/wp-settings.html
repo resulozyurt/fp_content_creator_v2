@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WP Ayarları | SEO İçerik Motoru</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link
       rel="stylesheet"
@@ -13,7 +13,19 @@
     <link rel="stylesheet" href="/css/style.css" />
     <script>
       tailwind.config = {
-        theme: { extend: { colors: { brand: { 600: "#2563eb" } } } },
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#eff6ff",
+                100: "#dbeafe",
+                500: "#3b82f6",
+                600: "#2563eb",
+                900: "#1e3a8a",
+              },
+            },
+          },
+        },
       };
     </script>
   </head>
@@ -21,7 +33,7 @@
     <div id="app" class="flex h-screen overflow-hidden">
       <app-sidebar></app-sidebar>
 
-      <main class="flex-1 flex flex-col h-screen overflow-y-auto">
+      <main class="flex-1 flex flex-col h-screen overflow-y-auto relative">
         <header
           class="h-16 bg-white border-b border-gray-200 flex items-center px-8 shadow-sm justify-between"
         >
@@ -107,7 +119,7 @@
         </div>
       </main>
     </div>
-    <script src="/js/components/sidebar.js"></script>
+
     <script src="/js/wp-settings.js"></script>
   </body>
 </html>
