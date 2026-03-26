@@ -48,17 +48,19 @@ def convert_html_to_gutenberg(html_content, image_meta_map):
 
 async def upload_bytes_to_wp(client, base_url, token, image_bytes, meta):
     media_url = f"{base_url}/wp-json/wp/v2/media"
-    unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.jpg"
+    
+    # İŞTE BURASI DÜZELTİLDİ: Tekrar PNG formatına çekildi.
+    unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.png"
     
     headers = {
         "Authorization": f"Basic {token}",
         "Content-Disposition": f'attachment; filename="{unique_name}"',
-        "Content-Type": "image/jpeg",
+        "Content-Type": "image/png", # JPG hatası giderildi
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"
     }
     print(f"   -> WP Medya yükleniyor: {unique_name}...")
     try:
-        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=45.0)
+        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=60.0)
         if res.status_code in (200, 201):
             print("   -> Medya Yüklendi! Meta etiketler ekleniyor...")
             data = res.json()
@@ -87,7 +89,6 @@ async def process_and_publish(data):
     base_url = data.wp_url.rstrip('/')
     image_meta_map = {}
     
-    # SİHİRLİ ZIRH: Sayılara güvenmiyoruz, Named Groups (?P<isim>...) kullanıyoruz.
     b64_pattern = r'(?:\n?)?!\[(?P<alt>[^\]]*)\]\(data:image\/[^;]+;base64,(?P<b64>[^\)]+)\)'
     url_pattern = r'(?:\n?)?!\[(?P<alt>[^\]]*)\]\((?P<url>https?:\/\/[^\)]+)\)'
     
@@ -146,7 +147,6 @@ async def process_and_publish(data):
                 print(f"   [!] Base64 Resim atlandı (Güvenlik Kalkanı): {e}")
                 markdown_content = markdown_content.replace(match.group(0), "")
 
-        # Gözden kaçan şifreli metinleri temizle
         markdown_content = re.sub(r'!\[.*?\]\(data:image\/.*?;base64,.*?\)', '', markdown_content)
 
         print("4. Markdown HTML'e, HTML Gutenberg'e çevriliyor...")
