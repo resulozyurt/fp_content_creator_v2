@@ -3,6 +3,7 @@ import json
 import httpx
 import asyncio
 import anthropic
+import re
 
 def get_prompts_from_article(article_markdown: str, keyword: str) -> dict:
     """Makaleyi okuyup, her IMAGE etiketi için detaylı bir görsel promptu üretir."""
@@ -24,25 +25,27 @@ MAKALE METNİ:
 {article_markdown[:4000]}
 """
     try:
+        # NOKTA ATIŞI: Yetki listendeki en hızlı ve JSON için en ideal model
         response = anthropic_client.messages.create(
-            model="claude-3-haiku-20240307", # Prompt analizi için hızlı ve ucuz model
+            model="claude-haiku-4-5-20251001", 
             max_tokens=1000,
             temperature=0.2,
             messages=[{"role": "user", "content": prompt}]
         )
+        
         # JSON yanıtını güvenli şekilde parse et
-        import re
         json_match = re.search(r'\{.*\}', response.content[0].text, re.DOTALL)
         if json_match:
             return json.loads(json_match.group(0))
     except Exception as e:
-        print(f"Prompt üretim hatası: {e}")
+        print(f"Prompt üretim hatası (Anthropic API): {e}")
     return {}
 
 async def generate_imagen_base64(prompt: str) -> str:
     """Google Imagen 3 API'ye bağlanıp 16:9 resmi çizer ve Base64 formatında döndürür."""
-    api_key = os.getenv("GEMINI_API_KEY") # Google AI Studio'dan alınacak
+    api_key = os.getenv("GEMINI_API_KEY") 
     if not api_key:
+        print("KRİTİK HATA: Railway Variables içinde 'GEMINI_API_KEY' bulunamadı!")
         return ""
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-images:predict?key={api_key}"
@@ -59,8 +62,10 @@ async def generate_imagen_base64(prompt: str) -> str:
                 if "predictions" in data and len(data["predictions"]) > 0:
                     # Google Imagen 3 doğrudan Base64 döndürür
                     return data["predictions"][0]["bytesBase64Encoded"]
+            else:
+                print(f"Google Imagen API HTTP Hatası: {res.status_code} - {res.text}")
         except Exception as e:
-            print(f"Imagen API hatası: {e}")
+            print(f"Google Imagen API bağlantı hatası: {e}")
     return ""
 
 async def process_images_in_article(markdown_text: str, keyword: str) -> str:
@@ -70,6 +75,10 @@ async def process_images_in_article(markdown_text: str, keyword: str) -> str:
 
     prompts_data = get_prompts_from_article(markdown_text, keyword)
     
+    if not prompts_data:
+        print("UYARI: Görsel promptları üretilemediği için metin ham haliyle bırakıldı.")
+        return markdown_text
+        
     # Tüm görselleri paralel olarak (asenkron) hızlıca çizdir
     tasks = []
     tags = []
@@ -89,5 +98,7 @@ async def process_images_in_article(markdown_text: str, keyword: str) -> str:
             # Tarayıcıda doğrudan görünmesi için Base64 Data URI şeması
             markdown_img = f"![{alt}](data:image/jpeg;base64,{b64})"
             markdown_text = markdown_text.replace(tag, markdown_img)
+        else:
+            print(f"UYARI: {tag} etiketi için resim çizilemedi, ham metin bırakılıyor.")
             
     return markdown_text
