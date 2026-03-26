@@ -1,3 +1,4 @@
+from services.image import process_images_in_article
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -80,8 +81,10 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
 
         # 3. AI Üretimi (Bir önceki adımda optimize ettiğimiz ai.py dosyası kullanılıyor)
         article_data = generate_ai_article(request.keyword, request.language, competitor_data)
-        
         final_markdown = article_data.get("article_markdown", "")
+        
+        # 4. GÖRSEL ÜRETİMİ VE ENTEGRASYONU (Yeni)
+        final_markdown = await process_images_in_article(final_markdown, request.keyword)
         
         process_summary = {
             "keyword": request.keyword,

@@ -44,7 +44,7 @@ Aşağıda rakiplerin içeriklerini ve onlara ait KAYNAK URL'leri (Bağlam) veri
 - **Okunabilirlik:** Paragrafları kısa tut. Bolca madde işareti ve en az 1 adet HTML Tablo kullan. (Gutenberg/WordPress uyumlu olacak).
 
 ### 4. GÖRSEL VE İÇ LİNK STRATEJİSİ
-- **Görseller:** En az 2-3 adet görsel yer tutucusu ekle: `[Görsel Önerisi: Alt Text ve başlık]`
+- **Görseller (KRİTİK):** İçeriğin mantıklı 3 farklı yerine KESİNLİKLE sadece şu formatta yer tutucular ekle: `[IMAGE_1]`, `[IMAGE_2]`, `[IMAGE_3]`. Bu yer tutucuların yanına ASLA başka bir açıklama, alt metin veya prompt yazma. (Bu kısımlar Google Imagen tarafından doldurulacaktır).
 - **İç Linkler:** En az 2 yere iç link yer tutucusu ekle: `[İç Link Önerisi: Hangi sayfaya gidilecek]`
 
 ### 5. DÖNÜŞÜM VE ÜRÜN ENTEGRASYONU
