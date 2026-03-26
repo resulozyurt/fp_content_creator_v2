@@ -48,19 +48,17 @@ def convert_html_to_gutenberg(html_content, image_meta_map):
 
 async def upload_bytes_to_wp(client, base_url, token, image_bytes, meta):
     media_url = f"{base_url}/wp-json/wp/v2/media"
-    
-    # İŞTE BURASI DÜZELTİLDİ: Tekrar PNG formatına çekildi.
     unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.png"
     
     headers = {
         "Authorization": f"Basic {token}",
         "Content-Disposition": f'attachment; filename="{unique_name}"',
-        "Content-Type": "image/png", # JPG hatası giderildi
+        "Content-Type": "image/png",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"
     }
     print(f"   -> WP Medya yükleniyor: {unique_name}...")
     try:
-        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=60.0)
+        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=45.0)
         if res.status_code in (200, 201):
             print("   -> Medya Yüklendi! Meta etiketler ekleniyor...")
             data = res.json()
@@ -89,8 +87,9 @@ async def process_and_publish(data):
     base_url = data.wp_url.rstrip('/')
     image_meta_map = {}
     
-    b64_pattern = r'(?:\n?)?!\[(?P<alt>[^\]]*)\]\(data:image\/[^;]+;base64,(?P<b64>[^\)]+)\)'
-    url_pattern = r'(?:\n?)?!\[(?P<alt>[^\]]*)\]\((?P<url>https?:\/\/[^\)]+)\)'
+    # İsme dayalı daha temiz regex'ler
+    b64_pattern = r'(?:\s*)?!\[(?P<alt>[^\]]*)\]\(data:image\/[^;]+;base64,(?P<b64>[^\)]+)\)'
+    url_pattern = r'(?:\s*)?!\[(?P<alt>[^\]]*)\]\((?P<url>https?:\/\/[^\)]+)\)'
     
     b64_matches = list(re.finditer(b64_pattern, markdown_content))
     url_matches = list(re.finditer(url_pattern, markdown_content))
@@ -104,18 +103,24 @@ async def process_and_publish(data):
         for match in url_matches:
             try:
                 full_match_text = match.group(0)
-                meta_str = match.group('meta')
-                alt_text = match.group('alt')
-                img_url = match.group('url')
+                # Dictionary mantığı: Hata fırlatmak yerine bulamazsa None döner, çökmez.
+                match_data = match.groupdict()
+                
+                meta_str = match_data.get('meta')
+                alt_text = match_data.get('alt', '')
+                img_url = match_data.get('url')
                 
                 meta = json.loads(meta_str) if meta_str else {"alt": alt_text, "title": "", "caption": ""}
-                print(f"   -> OpenAI'dan resim indiriliyor: {img_url[:30]}...")
                 
-                img_res = await client.get(img_url, timeout=30.0)
-                if img_res.status_code == 200:
-                    wp_image_url = await upload_bytes_to_wp(client, base_url, token, img_res.content, meta)
+                if img_url:
+                    print(f"   -> OpenAI'dan resim indiriliyor: {img_url[:30]}...")
+                    img_res = await client.get(img_url, timeout=30.0)
+                    if img_res.status_code == 200:
+                        wp_image_url = await upload_bytes_to_wp(client, base_url, token, img_res.content, meta)
+                    else:
+                        print(f"   [!] OpenAI İndirme Hatası: {img_res.status_code}")
+                        wp_image_url = None
                 else:
-                    print(f"   [!] OpenAI İndirme Hatası: {img_res.status_code}")
                     wp_image_url = None
                     
                 if wp_image_url:
@@ -131,12 +136,18 @@ async def process_and_publish(data):
         for match in b64_matches:
             try:
                 full_match_text = match.group(0)
-                meta_str = match.group('meta')
-                alt_text = match.group('alt')
-                b64_data = match.group('b64')
+                match_data = match.groupdict()
+                
+                meta_str = match_data.get('meta')
+                alt_text = match_data.get('alt', '')
+                b64_data = match_data.get('b64')
                 
                 meta = json.loads(meta_str) if meta_str else {"alt": alt_text, "title": "", "caption": ""}
-                wp_image_url = await upload_bytes_to_wp(client, base_url, token, base64.b64decode(b64_data), meta)
+                
+                if b64_data:
+                    wp_image_url = await upload_bytes_to_wp(client, base_url, token, base64.b64decode(b64_data), meta)
+                else:
+                    wp_image_url = None
                 
                 if wp_image_url:
                     image_meta_map[wp_image_url] = meta
@@ -147,6 +158,7 @@ async def process_and_publish(data):
                 print(f"   [!] Base64 Resim atlandı (Güvenlik Kalkanı): {e}")
                 markdown_content = markdown_content.replace(match.group(0), "")
 
+        # Gözden kaçan şifreli metinleri temizle
         markdown_content = re.sub(r'!\[.*?\]\(data:image\/.*?;base64,.*?\)', '', markdown_content)
 
         print("4. Markdown HTML'e, HTML Gutenberg'e çevriliyor...")
