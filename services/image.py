@@ -1,18 +1,18 @@
 import os
 import json
-import httpx
 import asyncio
 import anthropic
+from openai import AsyncOpenAI
 import re
 
 def get_prompts_from_article(article_markdown: str, keyword: str) -> dict:
-    """Makaleyi okuyup, her IMAGE etiketi için detaylı bir görsel promptu üretir."""
+    """Makaleyi okuyup, her IMAGE etiketi için DALL-E 3'e uygun promptlar üretir."""
     anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
     prompt = f"""İşte yazılmış bir blog makalesi. İçinde [IMAGE_1], [IMAGE_2] vb. etiketler var.
 Anahtar kelime: {keyword}
 
-Görevin, bu etiketlerin geçtiği bağlamı okuyarak Google Imagen yapay zekasının profesyonel, 16:9 yatay (horizontal) kurumsal blog illüstrasyonları çizebilmesi için İngilizce promptlar üretmek.
+Görevin, bu etiketlerin geçtiği bağlamı okuyarak OpenAI DALL-E 3 yapay zekasının profesyonel, yatay (horizontal) kurumsal blog illüstrasyonları çizebilmesi için İngilizce promptlar üretmek.
 Görsellerde ASLA yazı (text/typography) olmamalıdır. Temiz, modern, minimalist flat illustration veya fotogerçekçi kurumsal tarzda olmalıdır.
 
 Aşağıdaki JSON formatında çıktıyı ver, başka hiçbir açıklama yazma:
@@ -25,7 +25,7 @@ MAKALE METNİ:
 {article_markdown[:4000]}
 """
     try:
-        # Görsel promptu üretimi için ana model ile aynı modeli (Sonnet) kullanıyoruz
+        # Prompt üretimi için senin yetkili olduğun en güçlü modeli kullanıyoruz
         response = anthropic_client.messages.create(
             model="claude-sonnet-4-6", 
             max_tokens=1000,
@@ -41,36 +41,30 @@ MAKALE METNİ:
         print(f"Prompt üretim hatası (Anthropic API): {e}")
     return {}
 
-async def generate_imagen_base64(prompt: str) -> str:
-    """Google Imagen 3 API'ye bağlanıp 16:9 resmi çizer ve Base64 formatında döndürür."""
-    api_key = os.getenv("GEMINI_API_KEY") 
+async def generate_openai_base64(prompt: str) -> str:
+    """OpenAI DALL-E 3 API'ye bağlanıp 1792x1024 yatay resmi çizer ve doğrudan Base64 döndürür."""
+    api_key = os.getenv("OPENAI_API_KEY") 
     if not api_key:
-        print("KRİTİK HATA: Railway Variables içinde 'GEMINI_API_KEY' bulunamadı!")
+        print("KRİTİK HATA: Railway Variables içinde 'OPENAI_API_KEY' bulunamadı!")
         return ""
 
-    # DÜZELTİLEN KISIM: Google AI Studio'nun doğru model endpointi (001)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key={api_key}"
-    payload = {
-        "instances": [{"prompt": prompt}],
-        "parameters": {"sampleCount": 1, "aspectRatio": "16:9"}
-    }
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            res = await client.post(url, json=payload, timeout=45.0)
-            if res.status_code == 200:
-                data = res.json()
-                if "predictions" in data and len(data["predictions"]) > 0:
-                    # Google Imagen 3 doğrudan Base64 döndürür
-                    return data["predictions"][0]["bytesBase64Encoded"]
-            else:
-                print(f"Google Imagen API HTTP Hatası: {res.status_code} - {res.text}")
-        except Exception as e:
-            print(f"Google Imagen API bağlantı hatası: {e}")
+    client = AsyncOpenAI(api_key=api_key)
+    try:
+        response = await client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1792x1024", # Tam blog boyutlarına uygun yatay (widescreen) format
+            quality="standard",
+            response_format="b64_json", # Resmi indirmekle uğraşmadan direkt şifrelenmiş kodu alırız
+            n=1,
+        )
+        return response.data[0].b64_json
+    except Exception as e:
+        print(f"OpenAI DALL-E 3 API bağlantı hatası: {e}")
     return ""
 
 async def process_images_in_article(markdown_text: str, keyword: str) -> str:
-    """Makaledeki tüm yer tutucuları gerçek görsellerle (Base64) değiştirir."""
+    """Makaledeki tüm yer tutucuları gerçek görsellerle değiştirir."""
     if "[IMAGE_" not in markdown_text:
         return markdown_text
 
@@ -87,7 +81,7 @@ async def process_images_in_article(markdown_text: str, keyword: str) -> str:
     
     for tag, data in prompts_data.items():
         if tag in markdown_text:
-            tasks.append(generate_imagen_base64(data["prompt"]))
+            tasks.append(generate_openai_base64(data["prompt"]))
             tags.append(tag)
             alts.append(data["alt"])
 

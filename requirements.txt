@@ -8,3 +8,4 @@ markdown==3.5.1
 beautifulsoup4==4.12.2
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
+openai==1.59.3
