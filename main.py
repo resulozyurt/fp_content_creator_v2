@@ -13,7 +13,7 @@ from services.scraper import fetch_scraped_data
 from services.ai import generate_ai_article
 from services.wp import publish_to_wordpress
 from services.db import get_db, ArticleHistory
-from services.image import process_images_in_article # GÖRSEL SERVİSİ İÇE AKTARILDI
+from services.image import process_images_in_article
 
 load_dotenv()
 
@@ -85,8 +85,8 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
         article_data = generate_ai_article(request.keyword, request.language, competitor_data)
         final_markdown = article_data.get("article_markdown", "")
         
-        # 4. GÖRSEL ÜRETİMİ (Eksik olan ve sistemi tetikleyecek kısım)
-        final_markdown = await process_images_in_article(final_markdown, request.keyword)
+        # 4. GÖRSEL ÜRETİMİ (Language parametresi eklendi)
+        final_markdown = await process_images_in_article(final_markdown, request.keyword, request.language)
 
         process_summary = {
             "keyword": request.keyword,
@@ -125,12 +125,18 @@ def get_history(db: Session = Depends(get_db)):
     records = db.query(ArticleHistory).order_by(ArticleHistory.created_at.desc()).all()
     result = []
     for r in records:
+        # Geçmişin patlamaması için güvenli JSON okuma bloğu eklendi
+        try:
+            summary = json.loads(r.process_summary) if r.process_summary else {}
+        except Exception:
+            summary = {}
+            
         result.append({
             "id": r.id,
             "keyword": r.keyword,
             "language": r.language,
             "created_at": r.created_at,
-            "process_summary": json.loads(r.process_summary),
+            "process_summary": summary,
             "article_markdown": r.article_markdown
         })
     return result

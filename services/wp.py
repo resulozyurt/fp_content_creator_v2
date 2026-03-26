@@ -3,25 +3,36 @@ import markdown
 import base64
 import re
 import uuid
+import json
 from bs4 import BeautifulSoup
 
-def convert_html_to_gutenberg(html_content):
+def convert_html_to_gutenberg(html_content, image_meta_map):
     soup = BeautifulSoup(html_content, 'html.parser')
     gutenberg_blocks = []
     
     for element in soup.contents:
         if element.name == 'p':
-            # Resimler <p> etiketleri içinde gelir, onları ayıklayıp image bloklarına çeviriyoruz
             if element.find('img'):
                 img = element.find('img')
-                gutenberg_blocks.append(f'\n<figure class="wp-block-image aligncenter size-large"><img src="{img["src"]}" alt="{img.get("alt", "")}"/></figure>\n')
+                img_src = img["src"]
+                alt_text = img.get("alt", "")
+                
+                # Resmin URL'sine karşılık gelen Meta veriyi (Caption vb.) bul
+                meta = image_meta_map.get(img_src, {})
+                caption = meta.get("caption", "")
+                
+                caption_html = f'<figcaption class="wp-element-caption">{caption}</figcaption>' if caption else ""
+                
+                block = f'\n'
+                block += f'<figure class="wp-block-image aligncenter size-large"><img src="{img_src}" alt="{alt_text}"/>{caption_html}</figure>\n'
+                block += ''
+                gutenberg_blocks.append(block)
             else:
                 gutenberg_blocks.append(f'\n{str(element)}\n')
         elif element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
             level = element.name[1]
             gutenberg_blocks.append(f'\n{str(element)}\n')
         elif element.name in ['ul', 'ol']:
-            tag_type = "ordered" if element.name == 'ol' else "unordered"
             gutenberg_blocks.append(f'\n{str(element)}\n')
         elif element.name == 'blockquote':
             inner_html = element.encode_contents().decode('utf-8')
@@ -31,8 +42,7 @@ def convert_html_to_gutenberg(html_content):
             
     return "\n\n".join(gutenberg_blocks)
 
-async def upload_media_to_wp(client, base_url, token, b64_data):
-    """Base64 veriyi WordPress medya kütüphanesine yükler ve URL'sini döndürür."""
+async def upload_media_to_wp(client, base_url, token, b64_data, meta):
     media_url = f"{base_url}/wp-json/wp/v2/media"
     image_bytes = base64.b64decode(b64_data)
     unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.jpg"
@@ -43,9 +53,22 @@ async def upload_media_to_wp(client, base_url, token, b64_data):
         "Content-Type": "image/jpeg"
     }
     
+    # 1. Dosyayı Yükle
     res = await client.post(media_url, headers=headers, content=image_bytes, timeout=60.0)
     if res.status_code in (200, 201):
-        return res.json().get("source_url")
+        data = res.json()
+        media_id = data.get("id")
+        source_url = data.get("source_url")
+        
+        # 2. Yüklenen Dosyanın Title, Alt Text ve Caption alanlarını API ile güncelle
+        update_payload = {
+            "title": meta.get("title", ""),
+            "alt_text": meta.get("alt", ""),
+            "caption": meta.get("caption", "")
+        }
+        await client.post(f"{media_url}/{media_id}", headers={"Authorization": f"Basic {token}"}, json=update_payload, timeout=30.0)
+        
+        return source_url
     return None
 
 async def process_and_publish(data):
@@ -54,27 +77,31 @@ async def process_and_publish(data):
     token = base64.b64encode(credentials.encode()).decode('utf-8')
     base_url = data.wp_url.rstrip('/')
     
+    image_meta_map = {}
+    
     async with httpx.AsyncClient() as client:
-        # 1. Metin içindeki tüm Base64 resimleri bul
-        # Regex formatı: ![Alt Text](data:image/jpeg;base64,.....)
-        pattern = r'!\[([^\]]*)\]\(data:image\/[^;]+;base64,([^\)]+)\)'
+        # Metindeki gizli JSON kodunu ve Base64 resmini ayıkla
+        pattern = r'\s*!\[([^\]]*)\]\(data:image\/[^;]+;base64,([^\)]+)\)'
         matches = re.findall(pattern, markdown_content)
         
-        for alt_text, b64_data in matches:
-            # 2. Resmi fiziksel olarak WP Medya Kütüphanesine yükle
-            wp_image_url = await upload_media_to_wp(client, base_url, token, b64_data)
+        for meta_str, alt_text, b64_data in matches:
+            try:
+                meta = json.loads(meta_str)
+            except:
+                meta = {"alt": alt_text, "title": "", "caption": ""}
+                
+            # Resmi WP'ye Meta verilerle yükle
+            wp_image_url = await upload_media_to_wp(client, base_url, token, b64_data, meta)
             
-            # 3. Markdown içindeki Base64 yığınını, temiz WordPress URL'si ile değiştir
             if wp_image_url:
-                old_markdown_tag = f"![{alt_text}](data:image/jpeg;base64,{b64_data})"
-                new_markdown_tag = f"![{alt_text}]({wp_image_url})"
-                markdown_content = markdown_content.replace(old_markdown_tag, new_markdown_tag)
+                image_meta_map[wp_image_url] = meta
+                old_block = f"\n![{alt_text}](data:image/jpeg;base64,{b64_data})"
+                new_block = f"![{alt_text}]({wp_image_url})"
+                markdown_content = markdown_content.replace(old_block, new_block)
 
-        # 4. Temizlenen Markdown'ı HTML'e ve ardından Gutenberg'e çevir
         raw_html = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code', 'sane_lists'])
-        gutenberg_content = convert_html_to_gutenberg(raw_html)
+        gutenberg_content = convert_html_to_gutenberg(raw_html, image_meta_map)
         
-        # 5. Makaleyi Yayınla
         api_url = f"{base_url}/wp-json/wp/v2/posts"
         headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
         payload = {"title": data.title, "content": gutenberg_content, "status": data.status}
