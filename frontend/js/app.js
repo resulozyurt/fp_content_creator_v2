@@ -1,7 +1,7 @@
-// frontend/js/app.js
 const { createApp } = Vue;
 
-createApp({
+// EKSİK OLAN KISIM BURASIYDI: const app = ataması eklendi.
+const app = createApp({
   data() {
     return {
       form: { keyword: "", language: "tr", country: "tr" },
@@ -11,7 +11,7 @@ createApp({
       summary: null,
       error: null,
       isPublishing: false,
-      showIgnored: false // Gizlenen rakipleri göstermek için toggle
+      showIgnored: false
     };
   },
   computed: {
@@ -108,5 +108,7 @@ createApp({
     }
   },
 });
+
+// Sidebar bileşenini tanımlayıp mount ediyoruz
 app.component('app-sidebar', AppSidebar);
 app.mount("#app");

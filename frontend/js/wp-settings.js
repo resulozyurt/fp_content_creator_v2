@@ -1,7 +1,6 @@
-// frontend/js/wp-settings.js
 const { createApp } = Vue;
 
-createApp({
+const app = createApp({
   data() {
     return {
       wpForm: {
@@ -23,7 +22,8 @@ createApp({
       this.isSaved = true;
       setTimeout(() => { this.isSaved = false; }, 3000);
     }
-}
+  }
 });
+
 app.component('app-sidebar', AppSidebar);
 app.mount("#app");

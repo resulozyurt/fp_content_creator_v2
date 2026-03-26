@@ -1,7 +1,6 @@
-// frontend/js/history.js
 const { createApp } = Vue;
 
-createApp({
+const app = createApp({
   data() {
     return {
       history: [],
@@ -79,7 +78,7 @@ createApp({
         this.isPublishing = false;
       }
     }
-}
+  }
 });
 
 app.component('app-sidebar', AppSidebar);
