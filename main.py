@@ -1,4 +1,3 @@
-from services.image import process_images_in_article
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -14,13 +13,14 @@ from services.scraper import fetch_scraped_data
 from services.ai import generate_ai_article
 from services.wp import publish_to_wordpress
 from services.db import get_db, ArticleHistory
+from services.image import process_images_in_article # GÖRSEL SERVİSİ İÇE AKTARILDI
 
 load_dotenv()
 
 app = FastAPI(
     title=os.getenv("PROJECT_NAME", "SEO AI API"),
     description="Modüler SEO ve WP İçerik Motoru",
-    version="2.2.0"
+    version="2.3.0"
 )
 
 app.add_middleware(
@@ -46,13 +46,16 @@ async def history_page():
 async def wp_settings_page():
     return FileResponse("frontend/wp-settings.html")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "architecture": "modular"}
+
 @app.post("/api/v1/auto-create-article")
 async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session = Depends(get_db)):
     try:
         # 1. SERP Analizi ve Gelişmiş Filtreleme
         serp_data = await fetch_serp_data(request.keyword, request.language, request.country)
         
-        # Blacklist: Bilgi içermeyen veya rakip sayılmayan dev platformlar
         blacklist = ['youtube.com', 'facebook.com', 'instagram.com', 'pinterest.com', 'twitter.com', 'tiktok.com', 'linkedin.com', 'amazon.com', 'hepsiburada.com', 'trendyol.com', 'sahibinden.com', 'eksi']
         
         all_competitors = serp_data.get("competitors", [])
@@ -68,7 +71,6 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
         if not valid_competitors:
              raise HTTPException(status_code=404, detail="Google'da bilgi içeren, taranabilir uygun rakip bulunamadı.")
 
-        # İlk sayfadaki taranabilir TÜM organik sonuçları (genelde max 10 olur) alıyoruz
         top_competitors = valid_competitors[:10]
         urls_to_scrape = [comp["link"] for comp in top_competitors]
 
@@ -77,15 +79,15 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
         competitor_data = [{"url": item["url"], "content": item["content"]} for item in scrape_data.get("data", [])]
         
         if not competitor_data:
-             raise HTTPException(status_code=500, detail="İçerikler kazınamadı. Hedef siteler bot koruması kullanıyor olabilir.")
+             raise HTTPException(status_code=500, detail="İçerikler kazınamadı.")
 
-        # 3. AI Üretimi (Bir önceki adımda optimize ettiğimiz ai.py dosyası kullanılıyor)
+        # 3. AI İçerik Üretimi
         article_data = generate_ai_article(request.keyword, request.language, competitor_data)
         final_markdown = article_data.get("article_markdown", "")
         
-        # 4. GÖRSEL ÜRETİMİ VE ENTEGRASYONU (Yeni)
+        # 4. GÖRSEL ÜRETİMİ (Eksik olan ve sistemi tetikleyecek kısım)
         final_markdown = await process_images_in_article(final_markdown, request.keyword)
-        
+
         process_summary = {
             "keyword": request.keyword,
             "total_found": len(all_competitors),
@@ -96,7 +98,7 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
             "ignored_details": ignored_competitors
         }
 
-        # 4. Veritabanına Kaydetme (Hiçbir veri kaybolmaz)
+        # 5. Veritabanına Kaydetme
         db_record = ArticleHistory(
             keyword=request.keyword,
             language=request.language,
@@ -121,7 +123,6 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
 @app.get("/api/v1/history")
 def get_history(db: Session = Depends(get_db)):
     records = db.query(ArticleHistory).order_by(ArticleHistory.created_at.desc()).all()
-    # Frontend'de listelemek için JSON verisini string'den dictionary'ye çeviriyoruz
     result = []
     for r in records:
         result.append({
