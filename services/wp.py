@@ -11,13 +11,15 @@ def convert_html_to_gutenberg(html_content, image_meta_map):
     gutenberg_blocks = []
     
     for element in soup.contents:
+        if element.name is None:
+            continue
+            
         if element.name == 'p':
             if element.find('img'):
                 img = element.find('img')
                 img_src = img["src"]
                 alt_text = img.get("alt", "")
                 
-                # Resmin URL'sine karşılık gelen Meta veriyi (Caption vb.) bul
                 meta = image_meta_map.get(img_src, {})
                 caption = meta.get("caption", "")
                 
@@ -45,31 +47,36 @@ def convert_html_to_gutenberg(html_content, image_meta_map):
 async def upload_media_to_wp(client, base_url, token, b64_data, meta):
     media_url = f"{base_url}/wp-json/wp/v2/media"
     image_bytes = base64.b64decode(b64_data)
-    unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.jpg"
+    
+    # FORMAT DÜZELTİLDİ: Dosya uzantısı .png yapıldı
+    unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.png"
     
     headers = {
         "Authorization": f"Basic {token}",
         "Content-Disposition": f'attachment; filename="{unique_name}"',
-        "Content-Type": "image/jpeg"
+        "Content-Type": "image/png"
     }
     
-    # 1. Dosyayı Yükle
-    res = await client.post(media_url, headers=headers, content=image_bytes, timeout=60.0)
-    if res.status_code in (200, 201):
-        data = res.json()
-        media_id = data.get("id")
-        source_url = data.get("source_url")
-        
-        # 2. Yüklenen Dosyanın Title, Alt Text ve Caption alanlarını API ile güncelle
-        update_payload = {
-            "title": meta.get("title", ""),
-            "alt_text": meta.get("alt", ""),
-            "caption": meta.get("caption", "")
-        }
-        await client.post(f"{media_url}/{media_id}", headers={"Authorization": f"Basic {token}"}, json=update_payload, timeout=30.0)
-        
-        return source_url
-    return None
+    try:
+        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=90.0)
+        if res.status_code in (200, 201):
+            data = res.json()
+            media_id = data.get("id")
+            source_url = data.get("source_url")
+            
+            update_payload = {
+                "title": meta.get("title", ""),
+                "alt_text": meta.get("alt", ""),
+                "caption": meta.get("caption", "")
+            }
+            await client.post(f"{media_url}/{media_id}", headers={"Authorization": f"Basic {token}"}, json=update_payload, timeout=45.0)
+            return source_url
+        else:
+            print(f"[HATA] WP Medya Yükleme Başarısız: Kod {res.status_code} - {res.text}")
+            return None
+    except Exception as e:
+        print(f"[HATA] WP API Medya Bağlantı Hatası: {e}")
+        return None
 
 async def process_and_publish(data):
     markdown_content = data.content_markdown
@@ -80,7 +87,7 @@ async def process_and_publish(data):
     image_meta_map = {}
     
     async with httpx.AsyncClient() as client:
-        # Metindeki gizli JSON kodunu ve Base64 resmini ayıkla
+        # Regex her iki formatı da (png/jpeg) kapsayacak şekilde güvenli hale getirildi
         pattern = r'\s*!\[([^\]]*)\]\(data:image\/[^;]+;base64,([^\)]+)\)'
         matches = re.findall(pattern, markdown_content)
         
@@ -90,14 +97,17 @@ async def process_and_publish(data):
             except:
                 meta = {"alt": alt_text, "title": "", "caption": ""}
                 
-            # Resmi WP'ye Meta verilerle yükle
             wp_image_url = await upload_media_to_wp(client, base_url, token, b64_data, meta)
             
             if wp_image_url:
                 image_meta_map[wp_image_url] = meta
-                old_block = f"\n![{alt_text}](data:image/jpeg;base64,{b64_data})"
+                # Değiştirme işlemini güvenli hale getiriyoruz
+                old_block_png = f"\n![{alt_text}](data:image/png;base64,{b64_data})"
+                old_block_jpg = f"\n![{alt_text}](data:image/jpeg;base64,{b64_data})"
                 new_block = f"![{alt_text}]({wp_image_url})"
-                markdown_content = markdown_content.replace(old_block, new_block)
+                
+                markdown_content = markdown_content.replace(old_block_png, new_block)
+                markdown_content = markdown_content.replace(old_block_jpg, new_block)
 
         raw_html = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code', 'sane_lists'])
         gutenberg_content = convert_html_to_gutenberg(raw_html, image_meta_map)
@@ -106,7 +116,7 @@ async def process_and_publish(data):
         headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
         payload = {"title": data.title, "content": gutenberg_content, "status": data.status}
         
-        response = await client.post(api_url, headers=headers, json=payload, timeout=45.0)
+        response = await client.post(api_url, headers=headers, json=payload, timeout=60.0)
         
         if response.status_code in (200, 201):
             return response.json()

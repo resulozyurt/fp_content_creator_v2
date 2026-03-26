@@ -62,7 +62,6 @@ async def generate_openai_base64(prompt: str) -> str:
     if not api_key: return ""
     client = AsyncOpenAI(api_key=api_key)
     try:
-        # Promptun sonuna yapaylığı kırması için ekstra güvenlik kalkanı ekliyoruz
         enhanced_prompt = prompt + " Must be ultra-photorealistic, raw photography, real humans, authentic lighting, no text, no illustration."
         response = await client.images.generate(
             model="dall-e-3",
@@ -98,9 +97,9 @@ async def process_images_in_article(markdown_text: str, keyword: str, language: 
 
     for tag, b64, meta in zip(tags, results_base64, meta_list):
         if b64:
-            # SİHİRLİ DOKUNUŞ: WP'nin okuyabilmesi için Title ve Caption verilerini HTML Yorum satırı olarak gizlice metne gömüyoruz
+            # FORMAT DÜZELTİLDİ: "image/jpeg" yerine "image/png"
             meta_json = json.dumps({"alt": meta["alt"], "title": meta["title"], "caption": meta["caption"]})
-            markdown_img = f"\n![{meta['alt']}](data:image/jpeg;base64,{b64})"
+            markdown_img = f"\n![{meta['alt']}](data:image/png;base64,{b64})"
             markdown_text = markdown_text.replace(tag, markdown_img)
             
     return markdown_text
