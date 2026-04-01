@@ -25,6 +25,7 @@ def convert_html_to_gutenberg(html_content, image_meta_map):
                 
                 caption_html = f'<figcaption class="wp-element-caption">{caption}</figcaption>' if caption else ""
                 
+                # SİLİNEN GUTENBERG BLOKLARI GERİ GETİRİLDİ
                 block = f'\n'
                 block += f'<figure class="wp-block-image aligncenter size-large"><img src="{img_src}" alt="{alt_text}"/>{caption_html}</figure>\n'
                 block += ''
@@ -50,25 +51,32 @@ async def upload_bytes_to_wp(client, base_url, token, image_bytes, meta):
     media_url = f"{base_url}/wp-json/wp/v2/media"
     unique_name = f"fieldpie-seo-{uuid.uuid4().hex[:8]}.png"
     
+    # KİNSTA WAF ÇÖZÜMÜ: Form-Data (Tarayıcı Simülasyonu) kullanıyoruz.
+    files = {
+        'file': (unique_name, image_bytes, 'image/png')
+    }
     headers = {
         "Authorization": f"Basic {token}",
-        "Content-Disposition": f'attachment; filename="{unique_name}"',
-        "Content-Type": "image/png",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json"
     }
-    print(f"   -> WP Medya yükleniyor: {unique_name}...")
+    
+    print(f"   -> WP Medya yükleniyor (Multipart Form): {unique_name}...")
     try:
-        res = await client.post(media_url, headers=headers, content=image_bytes, timeout=45.0)
+        res = await client.post(media_url, headers=headers, files=files, timeout=60.0)
         if res.status_code in (200, 201):
             print("   -> Medya Yüklendi! Meta etiketler ekleniyor...")
             data = res.json()
             media_id = data.get("id")
             
+            # GÜNCELLEME 1: Description alanı buraya dahil edildi
             update_payload = {
                 "title": meta.get("title", ""),
                 "alt_text": meta.get("alt", ""),
-                "caption": meta.get("caption", "")
+                "caption": meta.get("caption", ""),
+                "description": meta.get("description", "")
             }
+            # Meta güncellemeleri JSON olarak gider
             await client.post(f"{media_url}/{media_id}", headers=headers, json=update_payload, timeout=30.0)
             return data.get("source_url")
         else:
@@ -80,59 +88,22 @@ async def upload_bytes_to_wp(client, base_url, token, image_bytes, meta):
 
 async def process_and_publish(data):
     print("\n===========================================")
-    print("1. WP GÖNDERİM SÜRECİ BAŞLADI")
+    print("1. WP GÖNDERİM SÜRECİ BAŞLADI (YENİ MİMARİ)")
     markdown_content = data.content_markdown
     credentials = f"{data.wp_username}:{data.wp_app_password}"
     token = base64.b64encode(credentials.encode()).decode('utf-8')
     base_url = data.wp_url.rstrip('/')
     image_meta_map = {}
     
-    # İsme dayalı daha temiz regex'ler
+    # GÜNCELLEME 2: Regex'in WP_META JSON'ını ESNEK olarak okuması (okuyunca çökmemesi) sağlandı
     b64_pattern = r'(?:\s*)?!\[(?P<alt>[^\]]*)\]\(data:image\/[^;]+;base64,(?P<b64>[^\)]+)\)'
-    url_pattern = r'(?:\s*)?!\[(?P<alt>[^\]]*)\]\((?P<url>https?:\/\/[^\)]+)\)'
+    b64_matches = list(re.finditer(b64_pattern, markdown_content, flags=re.DOTALL))
     
-    b64_matches = list(re.finditer(b64_pattern, markdown_content))
-    url_matches = list(re.finditer(url_pattern, markdown_content))
-    
-    print(f"2. Analiz: {len(b64_matches)} Base64 Resim, {len(url_matches)} URL Resim bulundu.")
+    print(f"2. Analiz: {len(b64_matches)} Adet Base64 Resim bulundu.")
 
     async with httpx.AsyncClient(limits=httpx.Limits(max_connections=5)) as client:
-        print("3. Resim İşlemleri (İndirme/Yükleme) Başlıyor...")
+        print("3. Resim Yükleme Başlıyor...")
         
-        # Yeni URL görselleri işle
-        for match in url_matches:
-            try:
-                full_match_text = match.group(0)
-                # Dictionary mantığı: Hata fırlatmak yerine bulamazsa None döner, çökmez.
-                match_data = match.groupdict()
-                
-                meta_str = match_data.get('meta')
-                alt_text = match_data.get('alt', '')
-                img_url = match_data.get('url')
-                
-                meta = json.loads(meta_str) if meta_str else {"alt": alt_text, "title": "", "caption": ""}
-                
-                if img_url:
-                    print(f"   -> OpenAI'dan resim indiriliyor: {img_url[:30]}...")
-                    img_res = await client.get(img_url, timeout=30.0)
-                    if img_res.status_code == 200:
-                        wp_image_url = await upload_bytes_to_wp(client, base_url, token, img_res.content, meta)
-                    else:
-                        print(f"   [!] OpenAI İndirme Hatası: {img_res.status_code}")
-                        wp_image_url = None
-                else:
-                    wp_image_url = None
-                    
-                if wp_image_url:
-                    image_meta_map[wp_image_url] = meta
-                    markdown_content = markdown_content.replace(full_match_text, f"![{alt_text}]({wp_image_url})")
-                else:
-                    markdown_content = markdown_content.replace(full_match_text, "")
-            except Exception as e:
-                print(f"   [!] Resim atlandı (Güvenlik Kalkanı): {e}")
-                markdown_content = markdown_content.replace(match.group(0), "")
-
-        # Eski Base64 görselleri işle
         for match in b64_matches:
             try:
                 full_match_text = match.group(0)
@@ -142,10 +113,12 @@ async def process_and_publish(data):
                 alt_text = match_data.get('alt', '')
                 b64_data = match_data.get('b64')
                 
-                meta = json.loads(meta_str) if meta_str else {"alt": alt_text, "title": "", "caption": ""}
+                # GÜNCELLEME 3: Description json okumasına eklendi
+                meta = json.loads(meta_str) if meta_str else {"alt": alt_text, "title": "", "caption": "", "description": ""}
                 
                 if b64_data:
-                    wp_image_url = await upload_bytes_to_wp(client, base_url, token, base64.b64decode(b64_data), meta)
+                    image_bytes = base64.b64decode(b64_data)
+                    wp_image_url = await upload_bytes_to_wp(client, base_url, token, image_bytes, meta)
                 else:
                     wp_image_url = None
                 
@@ -155,10 +128,9 @@ async def process_and_publish(data):
                 else:
                     markdown_content = markdown_content.replace(full_match_text, "")
             except Exception as e:
-                print(f"   [!] Base64 Resim atlandı (Güvenlik Kalkanı): {e}")
+                print(f"   [!] Resim atlandı (Hata Yakalandı): {e}")
                 markdown_content = markdown_content.replace(match.group(0), "")
 
-        # Gözden kaçan şifreli metinleri temizle
         markdown_content = re.sub(r'!\[.*?\]\(data:image\/.*?;base64,.*?\)', '', markdown_content)
 
         print("4. Markdown HTML'e, HTML Gutenberg'e çevriliyor...")
@@ -177,7 +149,7 @@ async def process_and_publish(data):
         try:
             response = await client.post(api_url, headers=headers, json=payload, timeout=60.0)
             if response.status_code in (200, 201):
-                print("6. İŞLEM BAŞARILI! Makale Yayınlandı.")
+                print("6. İŞLEM BAŞARILI! Makale ve Görseller Yayınlandı.")
                 print("===========================================\n")
                 return response.json()
             else:

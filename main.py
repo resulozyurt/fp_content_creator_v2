@@ -85,6 +85,10 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
         article_data = generate_ai_article(request.keyword, request.language, competitor_data)
         final_markdown = article_data.get("article_markdown", "")
         
+        # YENİ ADIM: OTOMATİK SITEMAP İÇ LİNKLEMESİ
+        from services.ai import process_internal_links
+        final_markdown = await process_internal_links(final_markdown)
+
         # 4. GÖRSEL ÜRETİMİ (Language parametresi eklendi)
         final_markdown = await process_images_in_article(final_markdown, request.keyword, request.language)
 
