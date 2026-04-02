@@ -7,6 +7,6 @@ anthropic
 markdown
 beautifulsoup4
 sqlalchemy
-# psycopg2-binary
+psycopg2-binary
 openai
 scikit-learn
