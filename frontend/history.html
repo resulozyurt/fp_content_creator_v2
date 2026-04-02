@@ -1,17 +1,10 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Geçmiş Kayıtlar | SEO İçerik Motoru</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link rel="stylesheet" href="/css/style.css" />
+    <title>History - ContentEngine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -29,145 +22,247 @@
         },
       };
     </script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      .prose h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: #1e293b;
+      }
+      .prose h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: #334155;
+      }
+      .prose p {
+        margin-bottom: 0.75em;
+        line-height: 1.6;
+        color: #475569;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+    </style>
   </head>
-  <body class="bg-gray-50 text-gray-800 font-sans">
-    <div id="app" class="flex h-screen overflow-hidden">
+  <body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
+    <div id="history-app" class="flex h-full w-full" v-cloak>
       <app-sidebar></app-sidebar>
 
-      <main class="flex-1 flex flex-col h-screen overflow-y-auto relative">
+      <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header
-          class="h-16 bg-white border-b border-gray-200 flex items-center px-8 shadow-sm justify-between"
+          class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0"
         >
-          <h1 class="text-xl font-semibold text-gray-800">
-            Veritabanı / Geçmiş Üretimler
-          </h1>
+          <h1 class="text-xl font-semibold text-slate-800">Geçmiş Kayıtlar</h1>
         </header>
 
-        <div class="p-8 max-w-7xl mx-auto w-full flex-1">
-          <div
-            v-if="isLoading"
-            class="flex justify-center mt-20 text-brand-500"
-          >
-            <i class="fa-solid fa-circle-notch fa-spin text-4xl"></i>
-          </div>
-
-          <div
-            v-else
-            class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-          >
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Tarih
-                  </th>
-                  <th
-                    scope="col"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Anahtar Kelime
-                  </th>
-                  <th
-                    scope="col"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Dil
-                  </th>
-                  <th
-                    scope="col"
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    İşlemler
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <tr
-                  v-for="item in history"
-                  :key="item.id"
-                  class="hover:bg-gray-50 transition-colors"
-                >
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ formatDate(item.created_at) }}
-                  </td>
-                  <td
-                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                  >
-                    {{ item.keyword }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span class="px-2 py-1 bg-gray-100 rounded text-xs"
-                      >{{ item.language.toUpperCase() }}</span
-                    >
-                  </td>
-                  <td
-                    class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2"
-                  >
-                    <button
-                      @click="viewArticle(item)"
-                      class="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded"
-                    >
-                      Görüntüle
-                    </button>
-                  </td>
-                </tr>
-                <tr v-if="history.length === 0">
-                  <td colspan="4" class="px-6 py-10 text-center text-gray-400">
-                    Henüz veritabanında kayıt bulunmuyor.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div
-          v-if="selectedArticle"
-          class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
-        >
-          <div
-            class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col"
-          >
-            <div
-              class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl"
-            >
-              <h3 class="font-bold text-lg">
-                <i class="fa-regular fa-file-lines mr-2"></i> {{
-                selectedArticle.keyword }}
-              </h3>
-              <div class="space-x-2 flex">
-                <button
-                  @click="publishToWp(selectedArticle)"
-                  :disabled="isPublishing"
-                  class="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-700 text-white rounded"
-                >
-                  <span v-if="!isPublishing"
-                    ><i class="fa-brands fa-wordpress"></i> WP'ye Gönder</span
-                  >
-                  <span v-else
-                    ><i class="fa-solid fa-circle-notch fa-spin"></i
-                  ></span>
-                </button>
-                <button
-                  @click="selectedArticle = null"
-                  class="px-3 py-1.5 text-gray-500 hover:bg-gray-200 rounded"
-                >
-                  <i class="fa-solid fa-xmark"></i> Kapat
-                </button>
-              </div>
+        <div class="flex-1 overflow-auto p-8">
+          <div v-if="isLoading" class="flex justify-center items-center h-64">
+            <div class="text-center">
+              <i
+                class="fa-solid fa-circle-notch fa-spin text-4xl text-brand-500 mb-4 block"
+              ></i>
+              <p class="text-slate-500 font-medium">
+                Kayıtlarınız yükleniyor...
+              </p>
             </div>
+          </div>
+
+          <div
+            v-else-if="error"
+            class="p-4 bg-red-50 text-red-800 rounded-lg flex items-center border border-red-200"
+          >
+            <i class="fa-solid fa-triangle-exclamation mr-3 text-red-500"></i>
+            <p class="font-medium">{{ error }}</p>
+          </div>
+
+          <div
+            v-else-if="records.length === 0"
+            class="text-center py-20 bg-white rounded-xl border border-slate-200"
+          >
+            <i class="fa-solid fa-folder-open text-6xl text-slate-200 mb-4"></i>
+            <h2 class="text-xl font-medium text-slate-600">
+              Henüz bir içerik üretmediniz
+            </h2>
+            <p class="text-slate-500 mt-2">
+              İlk SEO makalenizi üretmek için sol menüden İçerik Üretici'ye
+              gidin.
+            </p>
+          </div>
+
+          <div v-else class="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <div
-              class="p-8 overflow-y-auto prose max-w-none flex-1"
-              v-html="renderedModalHtml"
-            ></div>
+              v-for="record in records"
+              :key="record.id"
+              class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]"
+            >
+              <div
+                class="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0"
+              >
+                <div>
+                  <h3 class="font-bold text-slate-800 text-lg">
+                    {{ record.keyword }}
+                  </h3>
+                  <div
+                    class="text-xs text-slate-500 mt-1.5 flex items-center space-x-4"
+                  >
+                    <span
+                      ><i class="fa-regular fa-calendar mr-1.5"></i> {{ new
+                      Date(record.created_at).toLocaleString() }}</span
+                    >
+                    <span
+                      class="uppercase font-medium bg-slate-200 px-2 py-0.5 rounded text-slate-600"
+                      ><i class="fa-solid fa-globe mr-1"></i> {{ record.language
+                      }}</span
+                    >
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                  <button
+                    @click="publishToWp(record)"
+                    :disabled="record.isPublishing"
+                    class="px-4 py-2 bg-brand-50 border border-brand-200 rounded-lg text-sm font-medium text-brand-700 hover:bg-brand-100 hover:border-brand-300 transition-all shadow-sm disabled:opacity-50"
+                    title="WordPress'e Aktar"
+                  >
+                    <i
+                      v-if="record.isPublishing"
+                      class="fa-solid fa-spinner fa-spin mr-2"
+                    ></i>
+                    <i v-else class="fa-brands fa-wordpress mr-2"></i>Publish to
+                    WP
+                  </button>
+                  <button
+                    @click="copyMarkdown(record.article_markdown)"
+                    class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm"
+                    title="Markdown Kopyala"
+                  >
+                    <i class="fa-regular fa-copy mr-2"></i>Copy
+                  </button>
+                </div>
+              </div>
+              <div
+                class="p-8 overflow-y-auto prose prose-sm max-w-none flex-1 bg-white"
+                v-html="renderMarkdown(record.article_markdown)"
+              ></div>
+            </div>
           </div>
         </div>
       </main>
     </div>
 
-    <script src="/js/history.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script>
+      const { createApp } = Vue;
+      // const AppSidebar kısmı silindiği için doğrudan createApp({ ... }) başlayacak
+      const app = createApp({
+        data() {
+          return { records: [], isLoading: true, error: null };
+        },
+        async mounted() {
+          if (!AuthService.isAuthenticated()) {
+            window.location.href = "/login";
+            return;
+          }
+          await this.fetchHistory();
+        },
+        methods: {
+          async fetchHistory() {
+            try {
+              const res = await fetch("/api/v1/history", {
+                headers: { ...AuthService.getAuthHeaders() },
+              });
+              if (!res.ok) {
+                if (res.status === 401) {
+                  AuthService.logout();
+                  return;
+                }
+                throw new Error("Geçmiş kayıtlar sunucudan alınamadı.");
+              }
+              const fetchedRecords = await res.json();
+              // Her kaydın içine WP yükleme durumunu takip etmek için isPublishing değişkeni ekliyoruz
+              this.records = fetchedRecords.map((r) => ({
+                ...r,
+                isPublishing: false,
+              }));
+            } catch (err) {
+              this.error = err.message;
+            } finally {
+              this.isLoading = false;
+            }
+          },
+          renderMarkdown(text) {
+            return text ? marked.parse(text) : "";
+          },
+          async copyMarkdown(text) {
+            try {
+              await navigator.clipboard.writeText(text);
+              alert("İçerik Markdown formatında başarıyla kopyalandı!");
+            } catch (err) {
+              alert("Kopyalama başarısız oldu.");
+            }
+          },
+          // --- YENİ EKLENEN WP AKTARIM METODU ---
+          async publishToWp(record) {
+            record.isPublishing = true;
+
+            // Markdown içindeki ilk H1 başlığını bul, bulamazsa keyword'ü başlık yap
+            const titleMatch = record.article_markdown.match(/^#\s+(.*)/m);
+            const postTitle = titleMatch ? titleMatch[1] : record.keyword;
+
+            const payload = {
+              title: postTitle,
+              content_markdown: record.article_markdown,
+              status: "draft",
+            };
+
+            try {
+              const response = await fetch("/api/v1/publish-to-wp", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...AuthService.getAuthHeaders(),
+                },
+                body: JSON.stringify(payload),
+              });
+
+              const data = await response.json();
+              if (!response.ok)
+                throw new Error(data.detail || "WP aktarım hatası oluştu.");
+
+              alert(
+                `Başarılı! Makale WordPress'e native Gutenberg blokları olarak aktarıldı.\nYazı ID: ${data.post_id}`,
+              );
+            } catch (err) {
+              alert("Hata: " + err.message);
+              if (err.message.includes("WP Entegrasyonu")) {
+                window.location.href = "/wp-settings";
+              }
+            } finally {
+              record.isPublishing = false;
+            }
+          },
+        },
+      });
+
+      app.component("app-sidebar", AppSidebar);
+      app.mount("#history-app");
+    </script>
   </body>
 </html>

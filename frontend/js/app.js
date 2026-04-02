@@ -1,30 +1,4 @@
 const { createApp } = Vue;
-
-const AppSidebar = {
-  data() {
-    return { currentPath: window.location.pathname };
-  },
-  template: `
-    <aside class="w-64 bg-slate-900 text-white flex flex-col hidden md:flex h-screen sticky top-0">
-      <div class="h-16 flex items-center px-6 border-b border-slate-700">
-        <i class="fa-solid fa-bolt text-brand-500 text-xl mr-3"></i>
-        <span class="text-lg font-bold tracking-wider">ContentEngine</span>
-      </div>
-      <nav class="flex-1 px-4 py-6 space-y-2">
-        <a href="/" :class="['flex items-center px-4 py-3 rounded-lg transition-colors', currentPath === '/' ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white']">
-          <i class="fa-solid fa-pen-nib w-5 mr-3"></i><span class="font-medium">İçerik Üretici</span>
-        </a>
-        <a href="/history" :class="['flex items-center px-4 py-3 rounded-lg transition-colors', currentPath === '/history' ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white']">
-          <i class="fa-solid fa-database w-5 mr-3"></i><span class="font-medium">Geçmiş Kayıtlar</span>
-        </a>
-        <a href="/wp-settings" :class="['flex items-center px-4 py-3 rounded-lg transition-colors', currentPath === '/wp-settings' ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white']">
-          <i class="fa-brands fa-wordpress w-5 mr-3"></i><span class="font-medium">WP Entegrasyonu</span>
-        </a>
-      </nav>
-    </aside>
-  `
-};
-
 const app = createApp({
   data() {
     return {
@@ -124,10 +98,13 @@ const app = createApp({
 
       try {
         const response = await fetch("/api/v1/auto-create-article", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(this.form),
-        });
+  method: "POST",
+  headers: { 
+    "Content-Type": "application/json",
+    ...AuthService.getAuthHeaders() // YENİ EKLENDİ (Güvenlik Kilidi Anahtarı)
+  },
+  body: JSON.stringify(this.form),
+});
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Bilinmeyen bir hata oluştu");
@@ -151,18 +128,8 @@ const app = createApp({
         alert("Kopyalama başarısız oldu.");
       }
     },
-    async publishToWp() {
-      const wpUrl = localStorage.getItem('wp_url');
-      const wpUser = localStorage.getItem('wp_username');
-      const wpPass = localStorage.getItem('wp_app_password');
-      const wpStatus = localStorage.getItem('wp_status') || 'draft';
-
-      if (!wpUrl || !wpUser || !wpPass) {
-        alert("Lütfen önce sol menüden 'WP Entegrasyonu' sayfasına giderek API bilgilerinizi kaydedin.");
-        window.location.href = "/wp-settings";
-        return;
-      }
-
+async publishToWp() {
+      // localStorage'den veri çekme kodları TAMAMEN SİLİNDİ
       if (!this.articleMarkdown) {
         alert("Önce bir içerik üretmelisiniz!");
         return;
@@ -172,19 +139,20 @@ const app = createApp({
       const titleMatch = this.articleMarkdown.match(/^#\s+(.*)/m);
       const postTitle = titleMatch ? titleMatch[1] : this.form.keyword;
 
+      // Sadece başlık, içerik ve durumu gönderiyoruz. Şifreler Backend'de DB'den eklenecek!
       const payload = {
-        wp_url: wpUrl,
-        wp_username: wpUser,
-        wp_app_password: wpPass,
-        status: wpStatus,
         title: postTitle,
-        content_markdown: this.articleMarkdown
+        content_markdown: this.articleMarkdown,
+        status: 'draft'
       };
 
       try {
         const response = await fetch("/api/v1/publish-to-wp", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            ...AuthService.getAuthHeaders() // Token gönderimi
+          },
           body: JSON.stringify(payload),
         });
 
@@ -193,8 +161,13 @@ const app = createApp({
 
         alert(`Başarılı! Makale WordPress'e native Gutenberg blokları olarak aktarıldı.\nYazı ID: ${data.post_id}`);
       } catch (err) {
+        // Eğer DB'de ayar yoksa backend bizi buraya düşürecek
         alert("Hata: " + err.message);
+        if(err.message.includes("WP Entegrasyonu")) {
+             window.location.href = "/wp-settings";
+        }
       } finally {
+        this.isPublishing = true; // Wait, let's fix this in the code below to false
         this.isPublishing = false;
       }
     }

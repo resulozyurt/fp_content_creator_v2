@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - ContentEngine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#eff6ff",
+                100: "#dbeafe",
+                500: "#3b82f6",
+                600: "#2563eb",
+                900: "#1e3a8a",
+              },
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden flex"
+  >
+    <aside
+      class="w-64 bg-slate-900 text-white flex flex-col hidden md:flex h-screen shrink-0"
+    >
+      <div class="h-16 flex items-center px-6 border-b border-slate-700">
+        <i class="fa-solid fa-shield-halved text-brand-500 text-xl mr-3"></i>
+        <span class="text-lg font-bold tracking-wider">Admin Panel</span>
+      </div>
+      <nav class="flex-1 px-4 py-6 space-y-2">
+        <a
+          href="/admin"
+          class="flex items-center px-4 py-3 rounded-lg bg-brand-600 text-white transition-colors"
+        >
+          <i class="fa-solid fa-users w-5 mr-3"></i
+          ><span class="font-medium">User Management</span>
+        </a>
+        <a
+          href="/"
+          class="flex items-center px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors mt-8 border-t border-slate-700 pt-6"
+        >
+          <i class="fa-solid fa-arrow-left w-5 mr-3"></i
+          ><span class="font-medium">Back to App</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main
+      id="admin-app"
+      class="flex-1 flex flex-col h-full overflow-hidden"
+      v-cloak
+    >
+      <header
+        class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0"
+      >
+        <h1 class="text-xl font-semibold text-slate-800">System Users</h1>
+        <button
+          @click="logout"
+          class="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors"
+        >
+          <i class="fa-solid fa-right-from-bracket mr-2"></i>Sign Out
+        </button>
+      </header>
+
+      <div class="flex-1 overflow-auto p-8">
+        <div
+          v-if="error"
+          class="mb-6 p-4 bg-red-50 text-red-800 rounded-lg flex items-center border border-red-200"
+        >
+          <i class="fa-solid fa-triangle-exclamation mr-3 text-red-500"></i>
+          <p class="font-medium">{{ error }}</p>
+        </div>
+
+        <div
+          class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50"
+          >
+            <h2 class="text-lg font-bold text-slate-800">
+              Registered Accounts
+            </h2>
+            <button
+              @click="fetchUsers"
+              class="px-3 py-1.5 bg-white border border-slate-300 rounded text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <i class="fa-solid fa-rotate-right mr-2"></i>Refresh
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="bg-white border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500"
+                >
+                  <th class="px-6 py-4 font-semibold">User Info</th>
+                  <th class="px-6 py-4 font-semibold">Role</th>
+                  <th class="px-6 py-4 font-semibold">Status</th>
+                  <th class="px-6 py-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-if="isLoading" class="bg-white">
+                  <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+                    <i
+                      class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-brand-500"
+                    ></i>
+                    <p>Loading users...</p>
+                  </td>
+                </tr>
+                <tr v-else-if="users.length === 0" class="bg-white">
+                  <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+                    No users found.
+                  </td>
+                </tr>
+                <tr
+                  v-for="user in users"
+                  :key="user.id"
+                  class="bg-white hover:bg-slate-50 transition-colors"
+                >
+                  <td class="px-6 py-4">
+                    <div class="font-medium text-slate-900">
+                      {{ user.username }}
+                    </div>
+                    <div class="text-sm text-slate-500">{{ user.email }}</div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      :class="['px-2.5 py-1 text-xs font-bold rounded-full', user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700']"
+                    >
+                      {{ user.role.toUpperCase() }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      v-if="user.is_active"
+                      class="text-sm font-medium text-green-600"
+                      ><i class="fa-solid fa-circle-check mr-1.5"></i
+                      >Active</span
+                    >
+                    <span v-else class="text-sm font-medium text-red-600"
+                      ><i class="fa-solid fa-ban mr-1.5"></i>Banned</span
+                    >
+                  </td>
+                  <td class="px-6 py-4 text-right space-x-2">
+                    <button
+                      @click="toggleRole(user)"
+                      class="px-3 py-1.5 text-xs font-medium rounded border transition-colors"
+                      :class="user.role === 'admin' ? 'border-slate-300 text-slate-600 hover:bg-slate-100' : 'border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100'"
+                    >
+                      Make {{ user.role === 'admin' ? 'User' : 'Admin' }}
+                    </button>
+
+                    <button
+                      @click="toggleStatus(user)"
+                      class="px-3 py-1.5 text-xs font-medium rounded border transition-colors"
+                      :class="user.is_active ? 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100' : 'border-green-200 text-green-700 bg-green-50 hover:bg-green-100'"
+                    >
+                      {{ user.is_active ? 'Ban' : 'Unban' }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/auth.js"></script>
+    <script>
+      const { createApp } = Vue;
+      createApp({
+        data() {
+          return { users: [], isLoading: false, error: null };
+        },
+        async mounted() {
+          // Güvenlik: Kullanıcı giriş yapmamışsa at
+          if (!AuthService.isAuthenticated()) {
+            window.location.href = "/login";
+            return;
+          }
+          await this.fetchUsers();
+        },
+        methods: {
+          async fetchUsers() {
+            this.isLoading = true;
+            this.error = null;
+            try {
+              const res = await fetch("/api/admin/users", {
+                headers: { ...AuthService.getAuthHeaders() },
+              });
+              if (res.status === 403)
+                throw new Error(
+                  "Erişim Reddedildi: Sadece yetkili yöneticiler (Admin) bu sayfayı görüntüleyebilir.",
+                );
+              if (!res.ok)
+                throw new Error("Kullanıcılar yüklenirken bir hata oluştu.");
+
+              this.users = await res.json();
+            } catch (err) {
+              this.error = err.message;
+            } finally {
+              this.isLoading = false;
+            }
+          },
+          async toggleRole(user) {
+            const newRole = user.role === "admin" ? "user" : "admin";
+            if (
+              !confirm(
+                `'${user.username}' adlı kullanıcının yetkisini '${newRole.toUpperCase()}' yapmak istediğinize emin misiniz?`,
+              )
+            )
+              return;
+
+            try {
+              const res = await fetch(`/api/admin/users/${user.id}/role`, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...AuthService.getAuthHeaders(),
+                },
+                body: JSON.stringify({ role: newRole }),
+              });
+              const data = await res.json();
+              if (!res.ok)
+                throw new Error(data.detail || "Yetki güncellenemedi.");
+
+              await this.fetchUsers(); // Tabloyu yenile
+            } catch (err) {
+              alert("Hata: " + err.message);
+            }
+          },
+          async toggleStatus(user) {
+            const action = user.is_active ? "banlamak" : "aktif etmek";
+            if (
+              !confirm(
+                `'${user.username}' adlı hesabın sisteme erişimini ${action} istediğinize emin misiniz?`,
+              )
+            )
+              return;
+
+            try {
+              const res = await fetch(
+                `/api/admin/users/${user.id}/toggle-status`,
+                {
+                  method: "PUT",
+                  headers: { ...AuthService.getAuthHeaders() },
+                },
+              );
+              const data = await res.json();
+              if (!res.ok)
+                throw new Error(data.detail || "Hesap durumu değiştirilemedi.");
+
+              await this.fetchUsers(); // Tabloyu yenile
+            } catch (err) {
+              alert("Hata: " + err.message);
+            }
+          },
+          logout() {
+            AuthService.logout();
+          },
+        },
+      }).mount("#admin-app");
+    </script>
+  </body>
+</html>

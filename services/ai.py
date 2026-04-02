@@ -31,7 +31,7 @@ def generate_ai_article(keyword: str, language: str, competitor_data: List[Dict[
         brand_name = "FieldPie"
         faq_title = "Sıkça Sorulan Sorular (SSS)"
 
-    # ÇÖZÜM (Madde 3 ve 4): Bold yasağı ve İç Link Artışı Eklendi
+    # ÇÖZÜM: Bold yasağı, Dış Link Zorunluluğu ve Doğal İç Link (Anchor Text) Formatı
     system_prompt = f"""Sen dünya standartlarında bir SEO uzmanı, içerik stratejisti ve metin yazarısın.
 Amacın, '{keyword}' anahtar kelimesi için Google'da 1. sıraya yerleşecek, yüksek CTR ve dönüşüm oranına sahip mükemmel bir makale yazmaktır.
 
@@ -53,17 +53,21 @@ Aşağıda rakiplerin içeriklerini ve onlara ait KAYNAK URL'leri (Bağlam) veri
 - **Pratiklik:** Mutlaka uygulanabilir bir "Checklist" (Kontrol Listesi) veya adım adım rehber bölümü barındır.
 - **Okunabilirlik:** Paragrafları kısa tut. Bolca madde işareti ve en az 1 adet HTML Tablo kullan.
 
-### 4. GÖRSEL VE İÇ LİNK STRATEJİSİ
-- **Görseller (KRİTİK):** İçeriğin mantıklı yerlerine KESİNLİKLE sadece şu formatta yer tutucular ekle: `[IMAGE_1]`, `[IMAGE_2]`, `[IMAGE_3]`, `[IMAGE_4]` vb. Bu yer tutucuların yanına ASLA başka bir açıklama, alt metin veya prompt yazma.
-- **İç Linkler (KRİTİK KURAL):** Makale geneline 5-7 adet İÇ LİNK yer tutucusu ekle. ASLA VE ASLA iç linkleri alt alta liste, madde işareti veya yan yana ekleme! Her bir iç linki farklı PARAGRAFLARIN İÇİNE, cümlenin doğal ve organik bir parçası olacak şekilde yedirerek yerleştir. Format: `[İç Link Önerisi: Hangi sayfaya gidilecek]`
+### 4. GÖRSEL VE İÇ LİNK STRATEJİSİ (KRİTİK KURAL)
+- **Görseller:** İçeriğin mantıklı yerlerine KESİNLİKLE sadece şu formatta yer tutucular ekle: `[IMAGE_1]`, `[IMAGE_2]`, `[IMAGE_3]`, `[IMAGE_4]` vb. Bu yer tutucuların yanına ASLA başka bir açıklama, alt metin veya prompt yazma.
+- **İç Linkler:** Makale geneline 5-7 adet İÇ LİNK yer tutucusu ekle. ASLA VE ASLA iç linkleri alt alta liste, madde işareti veya yan yana ekleme! Her bir iç linki farklı PARAGRAFLARIN İÇİNE, cümlenin doğal ve organik bir parçası olacak şekilde yedirerek yerleştir. 
+- **İç Link Formatı:** Kesinlikle `[Doğal ve Harekete Geçirici Metin](INTERNAL: Sitemap'te Aranacak Konu)` şeklinde olmalıdır. 
+- **Doğru Örnek:** "Ekiplerinizin günlük performansını ölçmek için [kapsamlı bir saha takip yazılımı](INTERNAL: saha operasyon takibi) kullanmanız önerilir."
 
 ### 5. DÖNÜŞÜM VE ÜRÜN ENTEGRASYONU
 - Sorun-çözüm bölümünde '{brand_name}' yazılımını doğal bir teknolojik çözüm olarak konumlandır.
 - İçeriğin en sonuna çok güçlü bir **Call to Action (CTA)** ekle.
 
-### 6. KAYNAK GÖSTERİMİ VE DIŞ LİNKLEME (CITATION) - DİKKAT!
-- Sana verilen bağlamdaki verilerden faydalandığında, o verinin ait olduğu 'KAYNAK URL'yi Markdown formatında metnin içine doğal bir backlink olarak yerleştir.
-- KESİNLİKLE dış kaynak (backlink) verirken `[İç Link Önerisi: ...]` ETİKETİNİ KULLANMA! Dış linkler standart `[metin](url)` formatında olmalıdır.
+### 6. DIŞ KAYNAK (BACKLINK) VE REFERANSLAR (EN KRİTİK KURAL)
+- Sana sağlanan RAKİP VERİLERİ (Bağlam) içindeki 'KAYNAK URL'leri, makale içerisinde bir veriyi, istatistiği veya teknik bir detayı açıklarken EN AZ 3 KEZ doğal bir referans backlink'i olarak kullanmak ZORUNDASIN.
+- ÖRNEK KULLANIM: "Sektör araştırmalarına göre pazarın büyüyeceği [öngörülmektedir](https://www.rakip-ornek-url.com/arastirma)."
+- Dış linkleri KESİNLİKLE standart Markdown formatında `[tıklanabilir metin](KAYNAK URL)` olarak yaz.
+- Dış kaynak linklerini verirken ASLA VE ASLA `(INTERNAL: ...)` etiketini kullanma. Bu etiket sadece iç linkler içindir! Kaynaklar doğrudan URL içermelidir.
 
 ### 7. SIKÇA SORULAN SORULAR (FAQ)
 - Makalenin sonuna '{faq_title}' başlığı altında, PAA formatında 3 adet soru ve kısa cevaplarını ekle.
@@ -130,22 +134,51 @@ def find_best_url(suggestion: str, urls: list) -> str:
             best_url = url
     return best_url
 
-async def process_internal_links(markdown_text: str) -> str:
-    pattern = r'\[İç Link Önerisi:\s*(.*?)\]'
+async def process_internal_links(markdown_text: str, language: str = "tr") -> str:
+    """
+    Parses the custom [Anchor Text](INTERNAL: Target Topic) markdown tag.
+    Filters the sitemap URLs based on the language slug to prevent cross-language linking,
+    and replaces the tag with a real URL fetched from the Sitemap.
+    """
+    pattern = r'\[([^\]]+)\]\(INTERNAL:\s*(.*?)\)'
     matches = list(re.finditer(pattern, markdown_text))
+    
     if not matches:
         return markdown_text
+        
     print("\n-------------------------------------------")
-    print("1. OTOMATİK İÇ LİNKLEME MOTORU BAŞLADI")
+    print("1. AUTOMATIC INTERNAL LINKING ENGINE STARTED")
     urls = await get_all_sitemap_urls("https://www.fieldpie.com/sitemap_index.xml")
-    print(f"2. Sitemap tarandı: Toplam {len(urls)} adet canlı URL havuzu oluşturuldu.")
+    
+    # --- NEW: LANGUAGE ISOLATION FILTER ---
+    # English is main directory (no /tr/), Turkish is /tr/
+    target_urls = []
+    for url in urls:
+        if language.lower() == "tr":
+            if "/tr/" in url:
+                target_urls.append(url)
+        elif language.lower() == "en":
+            if "/tr/" not in url:
+                target_urls.append(url)
+                
+    # Failsafe: If filtering returns empty for some reason, use all URLs
+    if not target_urls:
+        target_urls = urls
+        
+    print(f"2. Sitemap scanned and filtered for '{language.upper()}': {len(target_urls)} valid URLs found.")
+    
     new_markdown = markdown_text
     for match in matches:
         full_text = match.group(0)
-        suggestion = match.group(1)
-        best_url = find_best_url(suggestion, urls)
-        link_markdown = f"[{suggestion}]({best_url})"
+        anchor_text = match.group(1) # Actionable visible text
+        suggestion = match.group(2)  # Invisible topic to search in sitemap
+        
+        # We now pass the filtered 'target_urls' list instead of all 'urls'
+        best_url = find_best_url(suggestion, target_urls)
+        link_markdown = f"[{anchor_text}]({best_url})"
+        
         new_markdown = new_markdown.replace(full_text, link_markdown)
-        print(f"   -> Link Eşleşti: '{suggestion}' => {best_url}")
+        print(f"   -> Link Matched: Topic '{suggestion}' => {best_url} (Anchor Text: '{anchor_text}')")
+        
     print("-------------------------------------------\n")
     return new_markdown
