@@ -6,11 +6,12 @@ from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 import json
+import re # Boşta kalan görsel taglerini silmek için eklendi
 
 from models import SerpRequest, ScrapeRequest, GenerateArticleRequest, AutoGenerateRequest, WPPublishRequest
 from services.serp import fetch_serp_data
 from services.scraper import fetch_scraped_data
-from services.ai import generate_ai_article
+from services.ai import generate_ai_article, process_internal_links
 from services.wp import publish_to_wordpress
 from services.db import get_db, ArticleHistory
 from services.image import process_images_in_article
@@ -20,7 +21,7 @@ load_dotenv()
 app = FastAPI(
     title=os.getenv("PROJECT_NAME", "SEO AI API"),
     description="Modüler SEO ve WP İçerik Motoru",
-    version="2.3.0"
+    version="2.4.1"
 )
 
 app.add_middleware(
@@ -53,9 +54,7 @@ async def health_check():
 @app.post("/api/v1/auto-create-article")
 async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session = Depends(get_db)):
     try:
-        # 1. SERP Analizi ve Gelişmiş Filtreleme
         serp_data = await fetch_serp_data(request.keyword, request.language, request.country)
-        
         blacklist = ['youtube.com', 'facebook.com', 'instagram.com', 'pinterest.com', 'twitter.com', 'tiktok.com', 'linkedin.com', 'amazon.com', 'hepsiburada.com', 'trendyol.com', 'sahibinden.com', 'eksi']
         
         all_competitors = serp_data.get("competitors", [])
@@ -69,28 +68,27 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
                 valid_competitors.append(comp)
         
         if not valid_competitors:
-             raise HTTPException(status_code=404, detail="Google'da bilgi içeren, taranabilir uygun rakip bulunamadı.")
+             raise HTTPException(status_code=404, detail="Google'da taranabilir uygun rakip bulunamadı.")
 
         top_competitors = valid_competitors[:10]
         urls_to_scrape = [comp["link"] for comp in top_competitors]
 
-        # 2. Kazıma İşlemi
         scrape_data = await fetch_scraped_data(urls_to_scrape)
         competitor_data = [{"url": item["url"], "content": item["content"]} for item in scrape_data.get("data", [])]
         
         if not competitor_data:
              raise HTTPException(status_code=500, detail="İçerikler kazınamadı.")
 
-        # 3. AI İçerik Üretimi
+        # AI Üretimi ve NLP Verisi Yakalama
         article_data = generate_ai_article(request.keyword, request.language, competitor_data)
         final_markdown = article_data.get("article_markdown", "")
-        
-        # YENİ ADIM: OTOMATİK SITEMAP İÇ LİNKLEMESİ
-        from services.ai import process_internal_links
-        final_markdown = await process_internal_links(final_markdown)
+        nlp_matrix = article_data.get("nlp_matrix", []) # EKSİK OLAN SATIR EKLENDİ
 
-        # 4. GÖRSEL ÜRETİMİ (Language parametresi eklendi)
+        final_markdown = await process_internal_links(final_markdown)
         final_markdown = await process_images_in_article(final_markdown, request.keyword, request.language)
+
+        # ÇÖZÜM (Madde 6): Görsel üretilemeyen yerlerdeki [IMAGE_X] taglerini temizle
+        final_markdown = re.sub(r'\[IMAGE_[^\]]+\]', '', final_markdown)
 
         process_summary = {
             "keyword": request.keyword,
@@ -102,7 +100,6 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
             "ignored_details": ignored_competitors
         }
 
-        # 5. Veritabanına Kaydetme
         db_record = ArticleHistory(
             keyword=request.keyword,
             language=request.language,
@@ -118,18 +115,17 @@ async def auto_create_article_endpoint(request: AutoGenerateRequest, db: Session
             "status": "success",
             "history_id": db_record.id,
             "process_summary": process_summary,
-            "final_article": final_markdown
+            "final_article": final_markdown,
+            "nlp_matrix": nlp_matrix # FRONTEND'E GÖNDERİLİYOR
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Otomasyon Hatası: {str(e)}")
 
-# --- Geçmiş Verileri API Endpointleri ---
 @app.get("/api/v1/history")
 def get_history(db: Session = Depends(get_db)):
     records = db.query(ArticleHistory).order_by(ArticleHistory.created_at.desc()).all()
     result = []
     for r in records:
-        # Geçmişin patlamaması için güvenli JSON okuma bloğu eklendi
         try:
             summary = json.loads(r.process_summary) if r.process_summary else {}
         except Exception:

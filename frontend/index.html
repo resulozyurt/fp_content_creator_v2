@@ -1,17 +1,10 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SEO İçerik Motoru | Yönetim Paneli</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link rel="stylesheet" href="/css/style.css" />
+    <title>ContentEngine - SEO AI Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -29,252 +22,396 @@
         },
       };
     </script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      .prose h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+        color: #1e293b;
+      }
+      .prose h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-top: 1.2em;
+        margin-bottom: 0.5em;
+        color: #334155;
+      }
+      .prose p {
+        margin-bottom: 1em;
+        line-height: 1.7;
+        color: #475569;
+      }
+      .prose ul {
+        list-style-type: disc;
+        padding-left: 1.5em;
+        margin-bottom: 1em;
+        color: #475569;
+      }
+      .prose strong {
+        color: #0f172a;
+      }
+      .prose a {
+        color: #2563eb;
+        text-decoration: underline;
+      }
+      .prose blockquote {
+        border-left: 4px solid #cbd5e1;
+        padding-left: 1em;
+        font-style: italic;
+        color: #64748b;
+        margin-bottom: 1em;
+      }
+      .prose table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1em;
+      }
+      .prose th,
+      .prose td {
+        border: 1px solid #e2e8f0;
+        padding: 0.75em;
+        text-align: left;
+      }
+      .prose th {
+        background-color: #f8fafc;
+        font-weight: 600;
+      }
+
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
   </head>
-  <body class="bg-gray-50 text-gray-800 font-sans">
-    <div id="app" class="flex h-screen overflow-hidden">
+  <body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
+    <div id="app" class="flex h-full w-full" v-cloak>
       <app-sidebar></app-sidebar>
 
-      <main class="flex-1 flex flex-col h-screen overflow-y-auto relative">
+      <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header
-          class="h-16 bg-white border-b border-gray-200 flex items-center px-8 shadow-sm justify-between"
+          class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0"
         >
-          <h1 class="text-xl font-semibold text-gray-800">
-            Yeni İçerik Oluştur
+          <h1 class="text-xl font-semibold text-slate-800">
+            SEO Content Creator
           </h1>
+          <div class="flex items-center space-x-4">
+            <button
+              @click="publishToWp"
+              v-if="articleMarkdown"
+              :disabled="isPublishing"
+              class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center disabled:opacity-50"
+            >
+              <i class="fa-brands fa-wordpress mr-2"></i>
+              <span v-if="!isPublishing">Publish to WP</span>
+              <span v-else
+                ><i class="fa-solid fa-circle-notch fa-spin mr-2"></i
+                >Publishing...</span
+              >
+            </button>
+          </div>
         </header>
 
-        <div class="p-8 max-w-7xl mx-auto w-full flex-1">
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1 space-y-6">
-              <div
-                class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
-              >
-                <h2 class="text-lg font-bold mb-4 border-b pb-2">
-                  Üretim Parametreleri
-                </h2>
-                <form @submit.prevent="generateArticle" class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium mb-1"
-                      >Anahtar Kelime</label
-                    >
-                    <input
-                      type="text"
-                      v-model="form.keyword"
-                      required
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
-                      :disabled="isLoading"
-                    />
-                  </div>
-                  <div class="grid grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium mb-1">Dil</label>
-                      <select
-                        v-model="form.language"
-                        class="w-full px-4 py-2 border rounded-lg outline-none"
-                        :disabled="isLoading"
-                      >
-                        <option value="tr">Türkçe</option>
-                        <option value="en">English</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium mb-1">Ülke</label>
-                      <select
-                        v-model="form.country"
-                        class="w-full px-4 py-2 border rounded-lg outline-none"
-                        :disabled="isLoading"
-                      >
-                        <option value="tr">TR</option>
-                        <option value="us">US</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    type="submit"
-                    :disabled="isLoading || !form.keyword"
-                    class="w-full mt-6 bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-lg flex items-center justify-center disabled:opacity-50"
+        <div class="flex-1 overflow-auto p-8">
+          <div
+            class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8"
+          >
+            <form
+              @submit.prevent="generateArticle"
+              class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end"
+            >
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-700 mb-2"
+                  >Target Keyword</label
+                >
+                <input
+                  type="text"
+                  v-model="form.keyword"
+                  required
+                  placeholder="e.g. saha servis programı"
+                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-slate-900 outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2"
+                  >Language</label
+                >
+                <select
+                  v-model="form.language"
+                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                >
+                  <option value="tr">Turkish</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div>
+                <button
+                  type="submit"
+                  :disabled="isLoading"
+                  class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg transition-colors flex items-center justify-center disabled:bg-slate-400"
+                >
+                  <i
+                    v-if="isLoading"
+                    class="fa-solid fa-spinner fa-spin mr-2"
+                  ></i>
+                  <i v-else class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+                  {{ isLoading ? 'Generating...' : 'Generate Article' }}
+                </button>
+              </div>
+            </form>
+
+            <div
+              v-if="isLoading"
+              class="mt-6 p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center border border-blue-100"
+            >
+              <i
+                class="fa-solid fa-robot fa-bounce text-2xl mr-4 text-brand-500"
+              ></i>
+              <div>
+                <p class="font-medium">AI is crafting your content...</p>
+                <p class="text-sm text-blue-600 mt-1">
+                  <span v-if="step === 1"
+                    >Analyzing top 10 SERP competitors...</span
                   >
-                    <span v-if="!isLoading"
-                      ><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-                      İçeriği Üret</span
-                    >
-                    <span v-else
-                      ><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>
-                      Çalışıyor...</span
-                    >
-                  </button>
-                </form>
+                  <span v-else-if="step === 2"
+                    >Extracting LSI keywords & building NLP matrix...</span
+                  >
+                  <span v-else-if="step === 3"
+                    >Writing conversion-focused SEO article...</span
+                  >
+                </p>
               </div>
             </div>
 
-            <div class="lg:col-span-2">
+            <div
+              v-if="error"
+              class="mt-6 p-4 bg-red-50 text-red-800 rounded-lg flex items-start border border-red-200"
+            >
+              <i
+                class="fa-solid fa-triangle-exclamation mt-1 mr-3 text-red-500"
+              ></i>
+              <p class="font-medium">{{ error }}</p>
+            </div>
+          </div>
+
+          <div
+            v-if="summary"
+            class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8"
+          >
+            <h3
+              class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4"
+            >
+              Rakip Analizi Metrikleri
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div
-                class="bg-white rounded-xl shadow-sm border border-gray-100 min-h-[600px] flex flex-col"
+                class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col items-center"
               >
-                <div
-                  class="border-b border-gray-100 p-4 flex justify-between items-center bg-gray-50 rounded-t-xl"
+                <span class="text-3xl font-bold text-blue-600"
+                  >{{ summary.total_found }}</span
                 >
-                  <h3 class="font-semibold text-gray-700">
-                    <i class="fa-regular fa-file-lines mr-2"></i> Çıktı Önizleme
-                  </h3>
-                  <div v-if="articleMarkdown" class="space-x-2 flex">
-                    <button
-                      @click="copyToClipboard"
-                      class="px-3 py-1.5 text-sm bg-white border rounded hover:bg-gray-100"
-                    >
-                      <i class="fa-regular fa-copy"></i> Kopyala
-                    </button>
-                    <button
-                      @click="publishToWp"
-                      :disabled="isPublishing"
-                      class="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-700 text-white rounded disabled:opacity-50"
-                    >
-                      <span v-if="!isPublishing"
-                        ><i class="fa-brands fa-wordpress"></i> WP'ye
-                        Gönder</span
-                      >
-                      <span v-else
-                        ><i class="fa-solid fa-circle-notch fa-spin"></i>
-                        Gönderiliyor...</span
-                      >
-                    </button>
-                  </div>
-                </div>
+                <span class="text-xs text-blue-800 font-medium mt-1"
+                  >Bulunan Rakip</span
+                >
+              </div>
+              <div
+                class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex flex-col items-center"
+              >
+                <span class="text-3xl font-bold text-indigo-600"
+                  >{{ summary.analyzed }}</span
+                >
+                <span class="text-xs text-indigo-800 font-medium mt-1"
+                  >Analiz Edilen</span
+                >
+              </div>
+              <div
+                class="bg-green-50 p-4 rounded-lg border border-green-100 flex flex-col items-center"
+              >
+                <span class="text-3xl font-bold text-green-600"
+                  >{{ summary.successful_scrapes }}</span
+                >
+                <span class="text-xs text-green-800 font-medium mt-1"
+                  >Başarılı Kazıma</span
+                >
+              </div>
+              <div
+                class="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col items-center"
+              >
+                <span class="text-3xl font-bold text-slate-600"
+                  >{{ summary.ignored }}</span
+                >
+                <span class="text-xs text-slate-800 font-medium mt-1"
+                  >Reddedilen (Kara Liste)</span
+                >
+              </div>
+            </div>
+          </div>
 
-                <div class="p-8 flex-1 overflow-y-auto">
+          <div
+            v-if="articleMarkdown"
+            class="flex flex-col lg:flex-row gap-8 h-[800px]"
+          >
+            <div
+              class="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden"
+            >
+              <div class="flex border-b border-slate-200 bg-slate-50 shrink-0">
+                <button
+                  @click="activeTab = 'preview'"
+                  :class="['flex-1 py-3 text-sm font-medium transition-colors', activeTab === 'preview' ? 'bg-white text-brand-600 border-t-2 border-brand-600' : 'text-slate-500 hover:bg-slate-100']"
+                >
+                  <i class="fa-solid fa-eye mr-2"></i>Live Preview
+                </button>
+                <button
+                  @click="activeTab = 'edit'"
+                  :class="['flex-1 py-3 text-sm font-medium transition-colors', activeTab === 'edit' ? 'bg-white text-brand-600 border-t-2 border-brand-600' : 'text-slate-500 hover:bg-slate-100']"
+                >
+                  <i class="fa-brands fa-markdown mr-2"></i>Markdown Editor
+                </button>
+              </div>
+
+              <div class="flex-1 overflow-hidden relative">
+                <textarea
+                  v-if="activeTab === 'edit'"
+                  v-model="articleMarkdown"
+                  class="w-full h-full p-6 resize-none outline-none font-mono text-sm text-slate-700 bg-white leading-relaxed"
+                ></textarea>
+
+                <div
+                  v-if="activeTab === 'preview'"
+                  class="w-full h-full p-8 overflow-y-auto prose max-w-none bg-white"
+                  v-html="renderedHtml"
+                ></div>
+              </div>
+            </div>
+
+            <div
+              class="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0"
+            >
+              <div
+                class="p-6 border-b border-slate-200 bg-slate-900 text-white text-center"
+              >
+                <h3
+                  class="text-sm font-medium text-slate-300 uppercase tracking-wider mb-2"
+                >
+                  Overall SEO & LLM Score
+                </h3>
+                <div class="flex items-end justify-center">
+                  <span :class="['text-5xl font-bold', scoreColor]"
+                    >{{ seoScore }}</span
+                  >
+                  <span class="text-xl text-slate-400 mb-1 ml-1">/100</span>
+                </div>
+                <div
+                  class="w-full bg-slate-700 rounded-full h-2 mt-4 overflow-hidden"
+                >
                   <div
-                    v-if="articleMarkdown && !isLoading"
-                    class="prose max-w-none"
-                    v-html="renderedHtml"
+                    :class="['h-2 rounded-full transition-all duration-500', seoScore < 50 ? 'bg-red-500' : (seoScore < 80 ? 'bg-yellow-500' : 'bg-green-500')]"
+                    :style="{ width: seoScore + '%' }"
                   ></div>
-                  <div
-                    v-else-if="isLoading"
-                    class="flex justify-center text-brand-500 mt-20"
+                </div>
+              </div>
+
+              <div class="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-6">
+                <div>
+                  <h4
+                    class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2"
                   >
-                    <i class="fa-solid fa-layer-group fa-bounce text-4xl"></i>
-                  </div>
-                  <div
-                    v-else
-                    class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50"
-                  >
-                    <i class="fa-solid fa-robot text-5xl mb-4"></i>
-                    <p>Üretime başlamak için form verilerini doldurun.</p>
+                    Structure & Readability
+                  </h4>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div
+                      class="p-3 bg-white border border-slate-200 rounded-lg flex flex-col items-center"
+                    >
+                      <span class="text-lg font-bold text-slate-800"
+                        >{{ structMetrics.words }}</span
+                      >
+                      <span class="text-[10px] text-slate-500 uppercase"
+                        >Words</span
+                      >
+                    </div>
+                    <div
+                      class="p-3 bg-white border border-slate-200 rounded-lg flex flex-col items-center"
+                    >
+                      <span
+                        class="text-lg font-bold"
+                        :class="structMetrics.kwDensity > 0.5 && structMetrics.kwDensity <= 2.5 ? 'text-green-600' : 'text-red-500'"
+                        >%{{ structMetrics.kwDensity }}</span
+                      >
+                      <span class="text-[10px] text-slate-500 uppercase"
+                        >KW Density</span
+                      >
+                    </div>
+                    <div
+                      class="p-3 bg-white border border-slate-200 rounded-lg flex flex-col items-center"
+                    >
+                      <span class="text-lg font-bold text-slate-800"
+                        >{{ structMetrics.h2 }} / {{ structMetrics.h3 }}</span
+                      >
+                      <span class="text-[10px] text-slate-500 uppercase"
+                        >H2 / H3 Count</span
+                      >
+                    </div>
+                    <div
+                      class="p-3 bg-white border border-slate-200 rounded-lg flex flex-col items-center"
+                    >
+                      <span class="text-lg font-bold text-slate-800"
+                        >{{ structMetrics.links }}</span
+                      >
+                      <span class="text-[10px] text-slate-500 uppercase"
+                        >Internal Links</span
+                      >
+                    </div>
                   </div>
                 </div>
 
-                <div
-                  v-if="summary && !isLoading"
-                  class="border-t border-gray-100 bg-gray-50 rounded-b-xl flex flex-col"
-                >
-                  <div
-                    class="p-4 border-b border-gray-200 grid grid-cols-4 gap-4 text-center"
+                <hr class="border-slate-200" />
+
+                <div>
+                  <h4
+                    class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2"
                   >
-                    <div class="bg-white p-2 rounded border border-gray-200">
-                      <p class="text-xs text-gray-500">Bulunan Rakip</p>
-                      <p class="font-bold text-gray-800">
-                        {{ summary.total_found }}
-                      </p>
-                    </div>
-                    <div class="bg-blue-50 p-2 rounded border border-blue-100">
-                      <p class="text-xs text-blue-600">Referans Alınan</p>
-                      <p class="font-bold text-blue-800">
-                        {{ summary.analyzed }}
-                      </p>
-                    </div>
-                    <div class="bg-red-50 p-2 rounded border border-red-100">
-                      <p class="text-xs text-red-600">Es Geçilen</p>
-                      <p class="font-bold text-red-800">
-                        {{ summary.ignored }}
-                      </p>
-                    </div>
+                    Target LSI Keywords
+                  </h4>
+                  <div class="space-y-2">
                     <div
-                      class="bg-green-50 p-2 rounded border border-green-100"
+                      v-for="item in nlpMatrix"
+                      :key="item.keyword"
+                      class="flex items-center justify-between p-3 rounded-lg bg-white border border-slate-200 shadow-sm transition-all"
+                      :class="{'border-green-200 bg-green-50': item.current_freq >= item.target_freq, 'border-red-100': item.current_freq === 0}"
                     >
-                      <p class="text-xs text-green-600">Başarılı Kazıma</p>
-                      <p class="font-bold text-green-800">
-                        {{ summary.successful_scrapes }}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="p-4">
-                    <div class="flex justify-between items-center mb-3">
-                      <h4
-                        v-if="!showIgnored"
-                        class="text-sm font-semibold text-gray-700"
+                      <span
+                        class="text-sm font-medium"
+                        :class="item.current_freq >= item.target_freq ? 'text-green-700' : 'text-slate-700'"
                       >
-                        <i
-                          class="fa-solid fa-check-double text-green-500 mr-1"
-                        ></i>
-                        Analiz Edilen Kaynaklar
-                      </h4>
-                      <h4 v-else class="text-sm font-semibold text-gray-700">
-                        <i class="fa-solid fa-ban text-red-500 mr-1"></i>
-                        Filtrelenen Kaynaklar
-                      </h4>
+                        {{ item.keyword }}
+                      </span>
 
-                      <button
-                        @click="showIgnored = !showIgnored"
-                        class="text-xs text-blue-600 hover:underline"
-                      >
-                        <span v-if="showIgnored">Analiz Edilenleri Göster</span>
-                        <span v-else>Es Geçilenleri Göster</span>
-                      </button>
-                    </div>
-
-                    <div
-                      v-if="!showIgnored"
-                      class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2"
-                    >
-                      <a
-                        v-for="(comp, index) in summary.competitor_details"
-                        :key="index"
-                        :href="comp.link"
-                        target="_blank"
-                        class="flex items-center p-2 bg-white border border-gray-200 rounded text-left hover:border-blue-400"
-                      >
+                      <div class="flex items-center space-x-2">
                         <span
-                          class="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[10px] font-bold mr-2"
-                          >{{ index + 1 }}</span
+                          class="text-xs font-bold px-2 py-1 rounded"
+                          :class="item.current_freq >= item.target_freq ? 'bg-green-100 text-green-700' : (item.current_freq > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600')"
                         >
-                        <div class="overflow-hidden">
-                          <p
-                            class="text-xs font-medium text-gray-800 truncate"
-                            :title="comp.title"
-                          >
-                            {{ comp.title }}
-                          </p>
-                          <p
-                            class="text-[10px] text-gray-400 truncate"
-                            :title="comp.link"
-                          >
-                            {{ comp.link }}
-                          </p>
-                        </div>
-                      </a>
-                    </div>
-
-                    <div
-                      v-else
-                      class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2"
-                    >
-                      <div
-                        v-for="(comp, index) in summary.ignored_details"
-                        :key="'ig'+index"
-                        class="flex items-center p-2 bg-gray-100 border border-gray-200 rounded text-left opacity-75"
-                      >
-                        <span
-                          class="w-5 h-5 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-[10px] font-bold mr-2"
-                          ><i class="fa-solid fa-xmark"></i
-                        ></span>
-                        <div class="overflow-hidden">
-                          <p class="text-xs font-medium text-gray-600 truncate">
-                            {{ comp.title }}
-                          </p>
-                          <p class="text-[10px] text-gray-400 truncate">
-                            {{ comp.link }}
-                          </p>
-                        </div>
+                          {{ item.current_freq }} / {{ item.target_freq }}
+                        </span>
+                        <i
+                          v-if="item.current_freq >= item.target_freq"
+                          class="fa-solid fa-check text-green-500"
+                        ></i>
                       </div>
                     </div>
                   </div>
@@ -285,7 +422,6 @@
         </div>
       </main>
     </div>
-
     <script src="/js/app.js"></script>
   </body>
 </html>
