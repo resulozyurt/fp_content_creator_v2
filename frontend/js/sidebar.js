@@ -4,12 +4,12 @@ const AppSidebar = {
             currentPath: window.location.pathname,
             userRole: 'user', // Varsayılan rol
             menuItems: [
-                { path: '/', icon: 'fa-solid fa-pen-nib', text: 'SEO İçerik Üretici', show: true },
-                { path: '/history', icon: 'fa-solid fa-database', text: 'Geçmiş Kayıtlar', show: true },
-                { path: '/wp-settings', icon: 'fa-brands fa-wordpress', text: 'WP Entegrasyonu', show: true },
+                { path: '/', icon: 'fa-solid fa-pen-nib', text: 'Content Creator', show: true },
+                { path: '/history', icon: 'fa-solid fa-database', text: 'Content Logs', show: true },
+                { path: '/wp-settings', icon: 'fa-brands fa-wordpress', text: 'WP Integration', show: true },
                 // İleride eklenecek modüller
-                { path: '#1', icon: 'fa-regular fa-envelope', text: 'Newsletter Modülü', show: true, disabled: true },
-                { path: '#2', icon: 'fa-solid fa-hashtag', text: 'Sosyal Medya Modülü', show: true, disabled: true },
+                { path: '#1', icon: 'fa-regular fa-envelope', text: 'Newsletter Module', show: true, disabled: true },
+                { path: '#2', icon: 'fa-solid fa-hashtag', text: 'Social Media Module', show: true, disabled: true },
             ]
         };
     },
@@ -48,11 +48,11 @@ const AppSidebar = {
                   <a v-if="!item.disabled" :href="item.path" :class="['flex items-center px-4 py-3 rounded-lg transition-colors', isActive(item.path) ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white']">
                     <i :class="[item.icon, 'w-5 mr-3']"></i><span class="font-medium">{{ item.text }}</span>
                   </a>
-                  <div v-else class="flex items-center px-4 py-3 rounded-lg text-slate-500 opacity-50 cursor-not-allowed bg-slate-800/30 border border-slate-800 border-dashed mt-4" title="Yakında eklenecek">
+                  <div v-else class="flex items-center px-4 py-3 rounded-lg text-slate-500 opacity-50 cursor-not-allowed bg-slate-800/30 border border-slate-800 border-dashed mt-4" title="Coming Soon eklenecek">
                     <i :class="[item.icon, 'w-5 mr-3']"></i>
                     <div class="flex flex-col">
                         <span class="font-medium text-sm">{{ item.text }}</span>
-                        <span class="text-[10px] uppercase tracking-wider text-brand-400 mt-0.5">Yakında</span>
+                        <span class="text-[10px] uppercase tracking-wider text-brand-400 mt-0.5">Coming Soon</span>
                     </div>
                   </div>
               </template>
@@ -64,7 +64,7 @@ const AppSidebar = {
               </a>
               
               <button @click="logout" class="w-full flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors">
-                  <i class="fa-solid fa-right-from-bracket w-5 mr-3"></i><span class="font-medium">Çıkış Yap</span>
+                  <i class="fa-solid fa-right-from-bracket w-5 mr-3"></i><span class="font-medium">Logout</span>
               </button>
           </div>
         </nav>

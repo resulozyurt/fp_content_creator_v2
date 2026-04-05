@@ -68,7 +68,9 @@
         <header
           class="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0"
         >
-          <h1 class="text-xl font-semibold text-slate-800">Geçmiş Kayıtlar</h1>
+          <h1 class="text-xl font-semibold text-slate-800">
+            Content History Records
+          </h1>
         </header>
 
         <div class="flex-1 overflow-auto p-8">
@@ -78,7 +80,7 @@
                 class="fa-solid fa-circle-notch fa-spin text-4xl text-brand-500 mb-4 block"
               ></i>
               <p class="text-slate-500 font-medium">
-                Kayıtlarınız yükleniyor...
+                Your records are loading...
               </p>
             </div>
           </div>
@@ -97,11 +99,11 @@
           >
             <i class="fa-solid fa-folder-open text-6xl text-slate-200 mb-4"></i>
             <h2 class="text-xl font-medium text-slate-600">
-              Henüz bir içerik üretmediniz
+              You haven't created any content yet
             </h2>
             <p class="text-slate-500 mt-2">
-              İlk SEO makalenizi üretmek için sol menüden İçerik Üretici'ye
-              gidin.
+              To create your first SEO article, go to the Content Creator in the
+              left-hand menu.
             </p>
           </div>
 
@@ -138,7 +140,7 @@
                     @click="publishToWp(record)"
                     :disabled="record.isPublishing"
                     class="px-4 py-2 bg-brand-50 border border-brand-200 rounded-lg text-sm font-medium text-brand-700 hover:bg-brand-100 hover:border-brand-300 transition-all shadow-sm disabled:opacity-50"
-                    title="WordPress'e Aktar"
+                    title="Publish to Wordpress"
                   >
                     <i
                       v-if="record.isPublishing"
@@ -150,7 +152,7 @@
                   <button
                     @click="copyMarkdown(record.article_markdown)"
                     class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all shadow-sm"
-                    title="Markdown Kopyala"
+                    title="Copy"
                   >
                     <i class="fa-regular fa-copy mr-2"></i>Copy
                   </button>
